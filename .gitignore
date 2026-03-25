@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Sanal Ortam (Virtual Environment)
+venv/
+env/
+
+# Çevresel Değişkenler (Veritabanı Şifreleri vb.)
+.env
