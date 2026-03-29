@@ -74,20 +74,16 @@ elif selected_page == "🛒 Grocery List":
     st.title("🛒 Automatic Grocery List")
     st.write("Here is your smart shopping list. We've subtracted the items you already have at home!")
 
-    # MOCK DATA 1: Haftalık planın gerektirdiği malzemeler (İleride Backend'den gelecek)
     required_items = {"Tomatoes": 6, "Pasta (packs)": 2, "Milk (L)": 2, "Eggs": 12, "Chicken (kg)": 1.5}
 
-    # MOCK DATA 2: Yapay zekanın (YOLO) mutfakta tespit ettiği malzemeler (İleride AI'dan gelecek)
     home_items = {"Tomatoes": 2, "Milk (L)": 1, "Eggs": 6, "Apples": 4}
 
-    # FR6 - ALIŞVERİŞ LİSTESİ MATEMATİĞİ (İhtiyaç - Evdekiler)
     to_buy = {}
     for item, needed_qty in required_items.items():
         home_qty = home_items.get(item, 0) # Evde yoksa 0 say
         if needed_qty > home_qty:
             to_buy[item] = needed_qty - home_qty
 
-    # --- ARAYÜZ TASARIMI ---
     col1, col2 = st.columns(2)
 
     with col1:
