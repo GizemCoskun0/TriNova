@@ -101,7 +101,6 @@ elif selected_page == "🛒 Grocery List":
 
     st.divider()
     
-    # Kullanıcı için etkileşimli kontrol listesi (Checklist)
     st.subheader("📝 Your Shopping Checklist")
     for item, qty in to_buy.items():
         st.checkbox(f"Buy {qty}x {item}")
