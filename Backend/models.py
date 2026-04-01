@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Table
 from sqlalchemy.orm import relationship
-from database import Base
+from Backend.database import Base
 
 # Many-to-Many
 # The link between users and allergies
