@@ -1,10 +1,14 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# SQL Server connection string
-# Başındaki @ işareti SİLİNDİ:
-DATABASE_URL = "mssql+pyodbc://localhost\\SQLEXPRESS/SmartKitchenDB?driver=ODBC+Driver+17+for+SQL+Server&Trusted_Connection=yes"
-engine = create_engine(DATABASE_URL, echo=True)
+# SQLite connection string; database file will be created in the Backend folder.
+DATABASE_PATH = Path(__file__).resolve().parent / "smart_kitchen.db"
+DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
+engine = create_engine(
+    DATABASE_URL,
+    echo=True,
+    connect_args={"check_same_thread": False}
+)
 
 # Session creator for operations
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
