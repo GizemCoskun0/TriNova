@@ -1,0 +1,6 @@
+        if recipes:
+            st.success("✅ Successfully fetched data from API!")
+            for recipe in recipes:
+                st.info(f"🍲 **{recipe['title']}** (Missing Ingredients: {recipe['missedIngredientCount']})")
+        else:
+            st.error("No recipes found. Make sure your .env file has a valid SPOONACULAR_API_KEY!")
