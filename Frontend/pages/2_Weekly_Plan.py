@@ -1,12 +1,7 @@
 import streamlit as st
 import pandas as pd
-import asyncio
-import sys
-import os
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-
-from Backend.api_process import AsyncRecipeAPI
+import requests
+import requests
 
 st.title("📅 Weekly Meal Plan")
 st.write("Here is your 7-day meal plan based on your dietary preferences and home inventory.")
@@ -25,18 +20,29 @@ st.subheader("🌐 Live Backend Connection Test")
 st.write("Let''s ask the Spoonacular API for real recipes based on some test ingredients!")
 
 if st.button("Fetch Real Recipes via API", use_container_width=True):
-    test_ingredients = ["tomato", "cheese", "garlic"] # Şimdilik test için
+    test_ingredients = ["tomato", "cheese", "garlic"] 
     
-    with st.spinner("Connecting to Spoonacular API asynchronously..."):
-        # Streamlit senkron çalışır, asenkron API''yi çalıştırmak için asyncio.run kullanıyoruz
-        recipes = asyncio.run(AsyncRecipeAPI.search_by_ingredients(test_ingredients))
-        
-        if recipes:
-            st.success("✅ Successfully fetched data from API!")
-            for recipe in recipes:
-                st.info(f"🍲 **{recipe['title']}** (Missing Ingredients: {recipe['missedIngredientCount']})")
-        else:
-            st.error("No recipes found. Make sure your .env file has a valid SPOONACULAR_API_KEY!")
+    with st.spinner("Connecting to the FastAPI backend..."):
+        try:
+            ingredients_str = ",".join(test_ingredients)
+            api_url = f"http://localhost:8000/api/recipes?ingredients={ingredients_str}"
+            response = requests.get(api_url)
+            
+            if response.status_code == 200:
+                data = response.json() 
+                
+                if data["status"] == "success":
+                    st.success("✅ Data was successfully retrieved from the backend and Spoonacular!")
+                    recipes = data["data"]
+                    for recipe in recipes:
+                        st.info(f"🍲 **{recipe['title']}** (Number of Missing Materials: {recipe['missedIngredientCount']})")
+                else:
+                    st.error(f"Backend Error: {data['message']}")
+            else:
+                st.error("Failed to retrieve valid response from the server. Are you sure the backend is running?")
+                
+        except requests.exceptions.ConnectionError:
+            st.error("🚨 CONNECTION ERROR: Unable to reach the FastAPI server! Make sure you start the backend with the command 'uvicorn main:app --reload' from the terminal.")
 
 st.divider()
 col1, col2 = st.columns(2)
