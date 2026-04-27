@@ -8,4 +8,6 @@ venv/
 env/
 
 # Çevresel Değişkenler (Veritabanı Şifreleri vb.)
-.env
+.env*
+*.db
+Backend/*.db
