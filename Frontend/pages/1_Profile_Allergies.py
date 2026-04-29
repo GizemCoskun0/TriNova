@@ -2,10 +2,6 @@ import streamlit as st
 import requests
 import time
 
-# -------------------------------------------------
-# 1. SECURITY CHECK
-# -------------------------------------------------
-
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -29,19 +25,12 @@ if username == "":
     st.error("Username information is missing. Please logout and login again.")
     st.stop()
 
-# -------------------------------------------------
-# API URLS
-# -------------------------------------------------
 
 API_URL_POST = "http://localhost:8000/api/profile"
 API_URL_GET = f"http://localhost:8000/api/profile/{username}"
 
 st.title("👤 User Profile")
 st.write("Your dietary preferences and allergies will be collected here.")
-
-# -------------------------------------------------
-# GET CURRENT DATA FROM DATABASE
-# -------------------------------------------------
 
 current_email = email
 current_diet = "None"
@@ -61,11 +50,8 @@ try:
 except requests.exceptions.ConnectionError:
     st.error("🚨 CONNECTION ERROR: Backend is not running.")
 
-# -------------------------------------------------
-# SHOW CURRENT PREFERENCES
-# -------------------------------------------------
 
-st.subheader("📋 Your Current Preferences (From Database)")
+st.subheader("📋 Your Current Preferences")
 
 if current_diet != "None" or len(current_allergies) > 0:
     st.info(f"**Current Diet:** {current_diet}")
@@ -78,10 +64,6 @@ else:
     st.info("No preferences found in the database. Please select them below.")
 
 st.divider()
-
-# -------------------------------------------------
-# UPDATE PREFERENCES
-# -------------------------------------------------
 
 st.subheader("⚙️ Update Preferences")
 
@@ -112,10 +94,6 @@ with col2:
         allergy_options,
         default=valid_current_allergies
     )
-
-# -------------------------------------------------
-# SAVE BUTTON
-# -------------------------------------------------
 
 if st.button("Save Preferences", use_container_width=True):
 
