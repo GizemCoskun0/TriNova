@@ -11,7 +11,6 @@ API_URL = "http://localhost:8000/api/inventory"
 
 
 def fetch_inventory():
-
     try:
         response = requests.get(f"{API_URL}/{USERNAME}")
         if response.status_code == 200 and response.json()["status"] == "success":
@@ -21,7 +20,6 @@ def fetch_inventory():
     return []
 
 def add_item(item_name):
-   
     payload = {"username": USERNAME, "item_name": item_name, "amount": 1.0, "unit": "unit"}
     try:
         response = requests.post(API_URL, json=payload)
@@ -31,7 +29,6 @@ def add_item(item_name):
         return {"status": "error", "message": "Backend connection error!"}
 
 def delete_item(item_id):
-    
     try:
         response = requests.delete(f"{API_URL}/{item_id}")
         return response.json()
@@ -43,16 +40,28 @@ def delete_item(item_id):
 col1, col2 = st.columns([1, 1])
 
 with col1:
-    st.subheader("🤖 AI Camera Scanner")
-    st.info("Show your ingredients to the camera to detect them automatically.")
+    st.subheader("🤖 AI Scanner & Uploader")
+    st.info("Show your ingredients to the camera or upload a photo to detect them automatically.")
     
-    picture = st.camera_input("Take a photo of your fridge or counter")
+    # --- YENİ EKLENEN KISIM: Kamera ve Dosya Yükleme Sekmeleri ---
+    tab1, tab2 = st.tabs(["📸 Camera", "📂 Upload Image"])
+    
+    with tab1:
+        camera_picture = st.camera_input("Take a photo of your fridge or counter")
+    
+    with tab2:
+        uploaded_picture = st.file_uploader("Upload an image of your ingredients", type=["jpg", "jpeg", "png"])
+
+    # Kullanıcı kamerayı mı kullandı yoksa dosya mı yükledi kontrolü
+    picture = camera_picture if camera_picture else uploaded_picture
+    # -------------------------------------------------------------
 
     if picture:
-        st.image(picture, caption="Captured Image", use_container_width=True)
+        st.image(picture, caption="Selected Image", use_container_width=True)
         if st.button("🔍 Analyze with AI"):
             with st.spinner("AI is identifying ingredients..."):
-               
+                
+                # Burası şimdilik test listesi, bir sonraki adımda yapay zekadan gelecek!
                 detected_items = ["Tomato", "Cheese"] 
                 for item in detected_items:
                     res = add_item(item)
@@ -60,7 +69,7 @@ with col1:
                         st.success(f"✅ '{item}' eklendi!")
                     else:
                         st.warning(f"⚠️ {res.get('message')}")
-                st.rerun() 
+            st.rerun() 
 
 with col2:
     st.subheader("✍️ Manual Add & Current Stock")
