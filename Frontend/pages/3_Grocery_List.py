@@ -1,10 +1,6 @@
 import streamlit as st
 import requests
 
-# -------------------------------------------------
-# SESSION STATE
-# -------------------------------------------------
-
 if "recipes" not in st.session_state:
     st.session_state.recipes = []
 
@@ -12,17 +8,13 @@ if "to_buy" not in st.session_state:
     st.session_state.to_buy = {}
 
 
-# -------------------------------------------------
-# LIVE BACKEND CONNECTION TEST / RECIPE FETCH
-# -------------------------------------------------
+st.subheader("🍽️ Recipe Suggestions")
+st.write("Find recipe suggestions based on the ingredients you have at home.")
 
-st.subheader("🌐 Live Backend Connection Test")
-st.write("Let's ask the Spoonacular API for real recipes based on some test ingredients!")
-
-if st.button("Fetch Real Recipes via API", use_container_width=True):
+if st.button("Find Recipe Suggestions", use_container_width=True):
     test_ingredients = ["tomato", "cheese", "garlic"]
 
-    with st.spinner("Connecting to the FastAPI backend..."):
+    with st.spinner("Finding recipe suggestions..."):
         try:
             ingredients_str = ",".join(test_ingredients)
             api_url = f"http://localhost:8000/api/recipes?ingredients={ingredients_str}"
@@ -33,7 +25,7 @@ if st.button("Fetch Real Recipes via API", use_container_width=True):
                 data = response.json()
 
                 if data["status"] == "success":
-                    st.success("✅ Data was successfully retrieved from the backend and Spoonacular!")
+                    st.success("✅ Recipe suggestions loaded successfully!")
 
                     recipes = data["data"]
 
@@ -44,7 +36,7 @@ if st.button("Fetch Real Recipes via API", use_container_width=True):
                     st.error(f"Backend Error: {data['message']}")
 
             else:
-                st.error("Failed to retrieve valid response from the server. Are you sure the backend is running?")
+                st.error("🚨 Recipe service is currently unavailable. Please make sure the backend is running.")
 
         except requests.exceptions.ConnectionError:
             st.error(
@@ -54,9 +46,6 @@ if st.button("Fetch Real Recipes via API", use_container_width=True):
             )
 
 
-# -------------------------------------------------
-# SHOW AND SELECT RECIPES
-# -------------------------------------------------
 
 if st.session_state.recipes:
     st.divider()
@@ -118,10 +107,6 @@ if st.session_state.recipes:
                 st.warning("This recipe does not contain missing ingredient information.")
 
 
-# -------------------------------------------------
-# AUTOMATIC GROCERY LIST
-# -------------------------------------------------
-
 st.divider()
 
 st.title("🛒 Automatic Grocery List")
@@ -171,10 +156,6 @@ with col2:
             st.error(f"➖ {item}: {qty}")
 
 
-# -------------------------------------------------
-# SHOPPING CHECKLIST
-# -------------------------------------------------
-
 st.divider()
 
 st.subheader("📝 Your Shopping Checklist")
@@ -185,10 +166,6 @@ else:
     for item, qty in st.session_state.to_buy.items():
         st.checkbox(f"Buy {qty}x {item}")
 
-
-# -------------------------------------------------
-# CLEAR LIST BUTTON
-# -------------------------------------------------
 
 if st.button("🗑️ Clear Shopping List", use_container_width=True):
     st.session_state.to_buy = {}
