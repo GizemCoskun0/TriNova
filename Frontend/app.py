@@ -1,29 +1,45 @@
 import streamlit as st
-from apscheduler.schedulers.background import BackgroundScheduler
-import datetime
-import sys
-import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# 1. Initialize session state variables
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.username = ""
 
-st.set_page_config(page_title="Smart Kitchen Assistant", layout="wide", page_icon="🍳")
+# 2. If NOT logged in, show login page and HIDE sidebar
+if not st.session_state.logged_in:
+    # CSS trick to completely hide the sidebar and its toggle button
+    st.markdown("""
+        <style>
+            [data-testid="collapsedControl"] {display: none;}
+            [data-testid="stSidebar"] {display: none;}
+        </style>
+    """, unsafe_allow_html=True)
 
-@st.cache_resource
-def start_scheduler():
-    scheduler = BackgroundScheduler()
+    st.title("🔐 Login to Smart Kitchen Assistant")
     
+    input_username = st.text_input("Username") 
+    password = st.text_input("Password", type="password")
 
-    def auto_generate_plan():
-        print(f"⏰ [SCHEDULED TASK WORKED- {datetime.datetime.now()}] Weekly meal plans and shopping lists are generated automatically...")
-    
+    if st.button("Login", use_container_width=True):
+        # We will connect this to the real database later!
+        if input_username == "admin" and password == "1234": 
+            st.session_state.logged_in = True
+            st.session_state.username = input_username 
+            st.success("Login successful! Loading...")
+            st.rerun() 
+        else:
+            st.error("Invalid username or password!")
+            
+    # Stop reading the rest of the code if not logged in
+    st.stop() 
 
-    scheduler.add_job(auto_generate_plan, 'interval', seconds=100)
-    scheduler.start()
-    return scheduler
+# --- THE CODE BELOW ONLY RUNS AFTER A SUCCESSFUL LOGIN ---
 
+# Since the user is logged in, the CSS above won't run, and the sidebar will magically appear!
+st.title("👋 Welcome, " + st.session_state.username)
+st.write("You can access the Smart Inventory and other menus from the left-hand sidebar.")
 
-scheduler = start_scheduler()
-
-st.title("Welcome to the Smart Kitchen Assistant! 🥗")
-st.write("Please select a page from the left menu to proceed.")
-st.info("💡 Note: APScheduler is currently running in the background, quietly logging a message to the VS Code terminal every 10 seconds. You can check it out!")        
+if st.button("Logout"):
+    st.session_state.logged_in = False
+    st.session_state.username = ""
+    st.rerun()

@@ -1,1 +1,0 @@
-                st.success(f"Detected: {', '.join(detected_items)}")
