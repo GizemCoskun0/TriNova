@@ -131,3 +131,22 @@ def delete_inventory(item_id: int, db: Session = Depends(get_db)):
     db.delete(item)
     db.commit()
     return {"status": "success", "message": "Item deleted successfully!"}
+
+# Bu fonksiyon, Streamlit her açıldığında veritabanındaki kayıtları okur
+@app.get("/api/profile/{username}")
+def get_profile(username: str, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.username == username).first()
+    
+    if not db_user:
+        return {"status": "error", "message": "User not found"}
+        
+    email = db_user.email
+    diet = db_user.diets[0].name if db_user.diets else "None"
+    allergies = [allergy.name for allergy in db_user.allergies]
+    
+    return {
+        "status": "success",
+        "email": email,
+        "diet": diet,
+        "allergies": allergies
+    }

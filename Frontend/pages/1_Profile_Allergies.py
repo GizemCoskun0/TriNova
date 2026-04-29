@@ -1,45 +1,90 @@
 import streamlit as st
 import requests
+import time
 
-st.title("User Profile")
-st.write("User dietary preferences and allergies will be collected here.")
+# 1. GÜVENLİK KONTROLÜ
+if not st.session_state.get('logged_in', False):
+    st.warning("🚨 Please login from the main page first!")
+    st.stop()
 
-st.subheader("👤 Account Info")
-username = st.text_input("Username", value="beyza_dev")
-email = st.text_input("Email", value="beyza@smartkitchen.com")
+# Giriş yapan kullanıcının adını alıyoruz
+username = st.session_state.username
+
+API_URL_POST = "http://localhost:8000/api/profile"
+API_URL_GET = f"http://localhost:8000/api/profile/{username}"
+
+st.title("👤 User Profile")
+st.write("Your dietary preferences and allergies will be collected here.")
+
+# --- VERİTABANINDAN GERÇEK VERİLERİ ÇEKME (GET) ---
+current_email = ""
+current_diet = "None"
+current_allergies = []
+
+try:
+    response = requests.get(API_URL_GET)
+    if response.status_code == 200:
+        data = response.json()
+        if data.get("status") == "success":
+            current_email = data.get("email", "")
+            current_diet = data.get("diet", "None")
+            current_allergies = data.get("allergies", [])
+except requests.exceptions.ConnectionError:
+    st.error("🚨 CONNECTION ERROR: Backend is not running.")
+
+# --- EKRANDA MEVCUT TERCİHLERİ GÖSTERME ---
+st.subheader("📋 Your Current Preferences (From Database)")
+
+if current_diet != "None" or len(current_allergies) > 0:
+    st.info(f"**Current Diet:** {current_diet}")
+    if len(current_allergies) > 0:
+        st.warning(f"**Current Allergies:** {', '.join(current_allergies)}")
+    else:
+        st.success("**Current Allergies:** None")
+else:
+    st.info("No preferences found in the database. Please select them below.")
 
 st.divider()
+
+# --- TERCİHLERİ GÜNCELLEME ALANI ---
+st.subheader("⚙️ Update Preferences")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("🥗 Dietary Preferences")
-    diet = st.selectbox("Do you follow a specific diet?", 
-                        ["None", "Vegan", "Vegetarian", "Keto", "Gluten-Free"])
+    diet_options = ["None", "Vegan", "Vegetarian", "Keto", "Gluten-Free"]
+    # Veritabanından gelen diyeti varsayılan olarak seçili yapıyoruz
+    default_diet_index = diet_options.index(current_diet) if current_diet in diet_options else 0
+    diet = st.selectbox("Do you follow a specific diet?", diet_options, index=default_diet_index)
 
 with col2:
-    st.subheader("🚫 Allergies")
+    # Veritabanından gelen alerjileri varsayılan olarak kutuya yerleştiriyoruz
     allergies = st.multiselect("Select your allergies:", 
-                               ["Peanuts", "Dairy", "Egg", "Soy", "Seafood"])
+                               ["Peanuts", "Dairy", "Egg", "Soy", "Seafood"],
+                               default=current_allergies)
 
 if st.button("Save Preferences", use_container_width=True):
-    with st.spinner("Saving to database..."):
-        
+    # Girinti (boşluk) hatası düzeltildi!
+    with st.spinner("Saving to SQLite database..."):
+        generated_email = f"{username}@smartkitchen.com"
         payload = {
             "username": username,
-            "email": email,
+            "email": generated_email, 
             "diet": diet,
             "allergies": allergies
         }
         
         try:
-            response = requests.post("http://localhost:8000/api/profile", json=payload)
+            post_response = requests.post(API_URL_POST, json=payload)
             
-            if response.status_code == 200:
-                data = response.json()
-                st.success(f"✅ {data['message']}")
-                st.info(f"Saved Diet: {diet} | Saved Allergies: {', '.join(allergies) if allergies else 'None'}")
+            if post_response.status_code == 200:
+                response_data = post_response.json()
+                st.success(f"✅ {response_data.get('message', 'Profile successfully saved!')}")
+                time.sleep(1.5)
+                # Sayfayı yenile. Sayfa yenilenince en baştaki GET isteği tekrar çalışacak
+                # ve az önce veritabanına yazdığımız en güncel veriyi ekrana getirecek!
+                st.rerun() 
             else:
-                st.error("An error was returned from the backend.!")
+                st.error("Backend Error: Failed to save preferences.")
         except requests.exceptions.ConnectionError:
-            st.error("🚨 CONNECTION ERROR: Unable to reach FastAPI server!")
+            st.error("🚨 CONNECTION ERROR: Backend is not running.")
