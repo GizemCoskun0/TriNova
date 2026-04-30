@@ -38,7 +38,9 @@ class AsyncRecipeAPI:
                         data = await response.json()
                         return data
                     else:
+                        error_text = await response.text()
                         print(f"API Error! Status Code: {response.status}")
+                        print("API Error Response:", error_text)
                         return None
             except Exception as e:
                 print(f"Connection error occurred: {e}")

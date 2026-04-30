@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Table, Text, DateTime
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Table, Text, DateTime, Boolean
 from datetime import datetime
 from sqlalchemy.orm import relationship
 from database import Base
@@ -61,7 +61,7 @@ class MealPlan(Base):
     user_email = Column(String, index=True)
 
     plan_day = Column(String, nullable=False)
-
+    meal_type = Column(String, nullable=False)
     recipe_id = Column(Integer)
     recipe_title = Column(String, nullable=False)
     recipe_image = Column(String)
@@ -71,7 +71,23 @@ class MealPlan(Base):
     servings = Column(Integer)
 
     ingredients = Column(Text)
-
+    instructions = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     owner = relationship("User", back_populates="meal_plans")
+class ShoppingListItem(Base):
+    __tablename__ = "shopping_list_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    user_id = Column(Integer, ForeignKey("users.id"))
+    user_email = Column(String, index=True)
+
+    item_name = Column(String, nullable=False)
+    amount = Column(Float, default=1.0)
+    unit = Column(String, default="unit")
+
+    source_recipe_title = Column(String)
+    is_checked = Column(Boolean, default=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)    
