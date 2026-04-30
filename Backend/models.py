@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Table, Text, DateTime
+from datetime import datetime
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -27,6 +28,8 @@ class User(Base):
     allergies = relationship("Allergy", secondary=user_allergies, back_populates="users")
     diets = relationship("Diet", secondary=user_diets, back_populates="users")
 
+    meal_plans = relationship("MealPlan", back_populates="owner")
+
 class Inventory(Base):
     __tablename__ = "inventory"
     id = Column(Integer, primary_key=True, index=True)
@@ -48,3 +51,27 @@ class Diet(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True)
     users = relationship("User", secondary=user_diets, back_populates="diets")
+
+class MealPlan(Base):
+    __tablename__ = "meal_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    user_id = Column(Integer, ForeignKey("users.id"))
+    user_email = Column(String, index=True)
+
+    plan_day = Column(String, nullable=False)
+
+    recipe_id = Column(Integer)
+    recipe_title = Column(String, nullable=False)
+    recipe_image = Column(String)
+    source_url = Column(String)
+
+    ready_in_minutes = Column(Integer)
+    servings = Column(Integer)
+
+    ingredients = Column(Text)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    owner = relationship("User", back_populates="meal_plans")
