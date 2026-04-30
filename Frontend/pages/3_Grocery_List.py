@@ -1,178 +1,105 @@
 import streamlit as st
 import requests
 
-if "recipes" not in st.session_state:
-    st.session_state.recipes = []
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
-if "to_buy" not in st.session_state:
-    st.session_state.to_buy = {}
+if "username" not in st.session_state:
+    st.session_state.username = ""
 
+if "email" not in st.session_state:
+    st.session_state.email = ""
 
-st.subheader("🍽️ Recipe Suggestions")
-st.write("Find recipe suggestions based on the ingredients you have at home.")
+if not st.session_state.logged_in:
+    st.warning("🚨 Please login from the main page first!")
+    st.stop()
 
-if st.button("Find Recipe Suggestions", use_container_width=True):
-    test_ingredients = ["tomato", "cheese", "garlic"]
+username = st.session_state.username
+email = st.session_state.email
 
-    with st.spinner("Finding recipe suggestions..."):
-        try:
-            ingredients_str = ",".join(test_ingredients)
-            api_url = f"http://localhost:8000/api/recipes?ingredients={ingredients_str}"
+API_INVENTORY = f"http://localhost:8000/api/inventory/{username}"
+API_SHOPPING_LIST = f"http://localhost:8000/api/shopping-list/{email}"
 
-            response = requests.get(api_url)
+st.title("🛒 My Grocery List")
+st.write("Here you can see your home inventory and the items you need to buy.")
 
-            if response.status_code == 200:
-                data = response.json()
+home_items = []
 
-                if data["status"] == "success":
-                    st.success("✅ Recipe suggestions loaded successfully!")
+try:
+    inventory_response = requests.get(API_INVENTORY)
 
-                    recipes = data["data"]
+    if inventory_response.status_code == 200:
+        inventory_data = inventory_response.json()
 
-                    # Tarifleri session_state içine kaydediyoruz
-                    st.session_state.recipes = recipes
+        if inventory_data.get("status") == "success":
+            home_items = inventory_data.get("data", [])
+        else:
+            st.warning(inventory_data.get("message", "No inventory data found."))
 
-                else:
-                    st.error(f"Backend Error: {data['message']}")
+    else:
+        st.error("Backend Error: Failed to load inventory.")
+        st.write(inventory_response.text)
 
-            else:
-                st.error("🚨 Recipe service is currently unavailable. Please make sure the backend is running.")
+except requests.exceptions.ConnectionError:
+    st.error("🚨 CONNECTION ERROR: Backend is not running.")
 
-        except requests.exceptions.ConnectionError:
-            st.error(
-                "🚨 CONNECTION ERROR: Unable to reach the FastAPI server! "
-                "Make sure you start the backend with the command "
-                "'uvicorn main:app --reload' from the terminal."
-            )
+shopping_items = []
 
+try:
+    shopping_response = requests.get(API_SHOPPING_LIST)
 
+    if shopping_response.status_code == 200:
+        shopping_data = shopping_response.json()
 
-if st.session_state.recipes:
-    st.divider()
-    st.subheader("🍲 Select a Recipe")
+        if shopping_data.get("status") == "success":
+            shopping_items = shopping_data.get("data", [])
+        else:
+            st.info(shopping_data.get("message", "Your shopping list is empty."))
 
-    recipe_titles = [recipe["title"] for recipe in st.session_state.recipes]
+    else:
+        st.warning("Shopping list endpoint is not ready yet.")
+        st.write(shopping_response.text)
 
-    selected_recipe_title = st.selectbox(
-        "Choose a recipe to add its missing ingredients to your shopping list:",
-        recipe_titles
-    )
-
-    selected_recipe = None
-
-    for recipe in st.session_state.recipes:
-        if recipe["title"] == selected_recipe_title:
-            selected_recipe = recipe
-            break
-
-    if selected_recipe:
-        st.info(
-            f"Selected Recipe: **{selected_recipe['title']}** "
-            f"(Number of Missing Materials: {selected_recipe['missedIngredientCount']})"
-        )
-
-        if "missedIngredients" in selected_recipe:
-            st.write("Missing ingredients for this recipe:")
-
-            for ingredient in selected_recipe["missedIngredients"]:
-                name = ingredient.get("name", "Unknown ingredient")
-                amount = ingredient.get("amount", 1)
-                unit = ingredient.get("unit", "")
-
-                if unit:
-                    st.warning(f"➖ {name}: {amount} {unit}")
-                else:
-                    st.warning(f"➖ {name}: {amount}")
-
-        if st.button("➕ Add Missing Ingredients to Shopping List", use_container_width=True):
-            if "missedIngredients" in selected_recipe:
-                for ingredient in selected_recipe["missedIngredients"]:
-                    name = ingredient.get("name", "Unknown ingredient")
-                    amount = ingredient.get("amount", 1)
-                    unit = ingredient.get("unit", "")
-
-                    if unit:
-                        item_name = f"{name} ({unit})"
-                    else:
-                        item_name = name
-
-                    if item_name in st.session_state.to_buy:
-                        st.session_state.to_buy[item_name] += amount
-                    else:
-                        st.session_state.to_buy[item_name] = amount
-
-                st.success("✅ Missing ingredients added to the shopping list!")
-
-            else:
-                st.warning("This recipe does not contain missing ingredient information.")
-
-
-st.divider()
-
-st.title("🛒 Automatic Grocery List")
-st.write("Here is your smart shopping list. We've subtracted the items you already have at home!")
-
-required_items = {
-    "Tomatoes": 6,
-    "Pasta (packs)": 2,
-    "Milk (L)": 2,
-    "Eggs": 12,
-    "Chicken (kg)": 1.5
-}
-
-home_items = {
-    "Tomatoes": 2,
-    "Milk (L)": 1,
-    "Eggs": 6,
-    "Apples": 4
-}
-
-# Fake weekly required list'i ilk açılışta alışveriş listesine ekliyoruz
-if "base_items_added" not in st.session_state:
-    for item, needed_qty in required_items.items():
-        home_qty = home_items.get(item, 0)
-
-        if needed_qty > home_qty:
-            st.session_state.to_buy[item] = needed_qty - home_qty
-
-    st.session_state.base_items_added = True
+except requests.exceptions.ConnectionError:
+    st.error("🚨 CONNECTION ERROR: Backend is not running.")
 
 
 col1, col2 = st.columns(2)
 
-with col1:
-    st.subheader("🏠 Currently at Home (AI Detected)")
 
-    for item, qty in home_items.items():
-        st.info(f"✅ {item}: {qty}")
+with col1:
+    st.subheader("🏠 Currently at Home")
+
+    if home_items:
+        for item in home_items:
+            name = item.get("name", "")
+            amount = item.get("amount", "")
+            unit = item.get("unit", "")
+
+            st.info(f"✅ {name}: {amount} {unit}")
+    else:
+        st.info("No items found in your inventory.")
+
 
 with col2:
-    st.subheader("🛒 Missing (To Buy)")
+    st.subheader("🛒 Items To Buy")
 
-    if not st.session_state.to_buy:
-        st.success("You have everything you need for the week! 🎉")
+    if shopping_items:
+        for item in shopping_items:
+            item_name = item.get("item_name", "")
+            amount = item.get("amount", "")
+            unit = item.get("unit", "")
+            is_checked = item.get("is_checked", False)
+
+            st.checkbox(
+                f"Buy {amount} {unit} {item_name}",
+                value=is_checked,
+                key=f"shopping_item_{item.get('id')}"
+            )
     else:
-        for item, qty in st.session_state.to_buy.items():
-            st.error(f"➖ {item}: {qty}")
-
+        st.success("Your shopping list is empty.")
 
 st.divider()
 
-st.subheader("📝 Your Shopping Checklist")
-
-if not st.session_state.to_buy:
-    st.success("Your shopping checklist is empty.")
-else:
-    for item, qty in st.session_state.to_buy.items():
-        st.checkbox(f"Buy {qty}x {item}")
-
-
-if st.button("🗑️ Clear Shopping List", use_container_width=True):
-    st.session_state.to_buy = {}
-    st.session_state.base_items_added = False
-    st.success("Shopping list cleared!")
-    st.rerun()
-
-
 if st.button("📤 Send to WhatsApp / Mail", use_container_width=True):
-    st.success("Message sent! (Integration coming soon)")
+    st.success("Message sent! Integration coming soon.")

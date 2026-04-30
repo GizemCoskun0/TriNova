@@ -555,7 +555,36 @@ def check_meal_plan_ingredients(request: MealPlanItemRequest, db: Session = Depe
         "available_items": available_items,
         "missing_items": missing_items
     }
+# Shopping list retrieval endpoint - This will be called when Streamlit loads to display the current shopping list for the user.
+@app.get("/api/shopping-list/{email}")
+def get_shopping_list(email: str, db: Session = Depends(get_db)):
 
+    db_user = db.query(models.User).filter(models.User.email == email).first()
+
+    if not db_user:
+        return {
+            "status": "error",
+            "message": "User not found."
+        }
+
+    shopping_items = db.query(models.ShoppingListItem).filter(
+        models.ShoppingListItem.user_email == email
+    ).all()
+
+    return {
+        "status": "success",
+        "data": [
+            {
+                "id": item.id,
+                "item_name": item.item_name,
+                "amount": item.amount,
+                "unit": item.unit,
+                "source_recipe_title": item.source_recipe_title,
+                "is_checked": item.is_checked
+            }
+            for item in shopping_items
+        ]
+    }
 # Meal plan retrieval endpoint - This will be called when Streamlit loads to display the current meal plan for the user.
 @app.get("/api/meal-plan/{email}")
 def get_meal_plan(email: str, db: Session = Depends(get_db)):

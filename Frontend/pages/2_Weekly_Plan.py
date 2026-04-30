@@ -3,9 +3,6 @@ import requests
 import json
 import re
 
-# -------------------------------------------------
-# SECURITY CHECK
-# -------------------------------------------------
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -23,9 +20,6 @@ if not st.session_state.logged_in:
 username = st.session_state.username
 email = st.session_state.email
 
-# -------------------------------------------------
-# SESSION STATE
-# -------------------------------------------------
 
 if "selected_recipe_check" not in st.session_state:
     st.session_state.selected_recipe_check = None
@@ -33,18 +27,12 @@ if "selected_recipe_check" not in st.session_state:
 if "selected_meal_plan_id" not in st.session_state:
     st.session_state.selected_meal_plan_id = None
 
-# -------------------------------------------------
-# API URLS
-# -------------------------------------------------
 
 API_GET_PLAN = f"http://localhost:8000/api/meal-plan/{email}"
 API_GENERATE_PLAN = "http://localhost:8000/api/meal-plan/generate"
 API_CHECK_INGREDIENTS = "http://localhost:8000/api/meal-plan/check-ingredients"
 API_ADD_MISSING = "http://localhost:8000/api/shopping-list/add-missing"
 
-# -------------------------------------------------
-# HELPER FUNCTIONS
-# -------------------------------------------------
 
 def clean_html(text):
     if not text:
@@ -74,18 +62,11 @@ def parse_ingredients(ingredients_text):
         return []
 
 
-# -------------------------------------------------
-# PAGE TITLE
-# -------------------------------------------------
-
 st.title("📅 3-Day Meal Plan")
 st.write("Generate a personalized 3-day meal plan based on your diet, allergies, and home inventory.")
 
 st.info(f"Meal plan for: **{username}**")
 
-# -------------------------------------------------
-# GENERATE PLAN BUTTON
-# -------------------------------------------------
 
 if st.button("✨ Generate 3-Day Meal Plan", use_container_width=True):
     payload = {
@@ -120,9 +101,6 @@ if st.button("✨ Generate 3-Day Meal Plan", use_container_width=True):
 
 st.divider()
 
-# -------------------------------------------------
-# GET CURRENT PLAN FROM DATABASE
-# -------------------------------------------------
 
 meal_plan = []
 
@@ -144,9 +122,6 @@ try:
 except requests.exceptions.ConnectionError:
     st.error("🚨 CONNECTION ERROR: Backend is not running.")
 
-# -------------------------------------------------
-# SHOW CURRENT PLAN
-# -------------------------------------------------
 
 st.subheader("🍽️ Your Current 3-Day Meal Plan")
 
@@ -265,9 +240,6 @@ if meal_plan:
 else:
     st.info("No meal plan found yet. Click the button above to generate your 3-day meal plan.")
 
-# -------------------------------------------------
-# SELECTED RECIPE INGREDIENT CHECK RESULT
-# -------------------------------------------------
 
 if st.session_state.selected_recipe_check:
 
@@ -339,9 +311,6 @@ if st.session_state.selected_recipe_check:
                 except requests.exceptions.ConnectionError:
                     st.error("🚨 CONNECTION ERROR: Backend is not running.")
 
-# -------------------------------------------------
-# EXPORT PLACEHOLDER
-# -------------------------------------------------
 
 st.divider()
 
