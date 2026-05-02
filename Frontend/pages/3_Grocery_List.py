@@ -1,103 +1,94 @@
 import streamlit as st
 import requests
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-if "username" not in st.session_state:
-    st.session_state.username = ""
-
-if "email" not in st.session_state:
-    st.session_state.email = ""
-
-if not st.session_state.logged_in:
+if "logged_in" not in st.session_state or not st.session_state.logged_in:
     st.warning("🚨 Please login from the main page first!")
     st.stop()
 
-username = st.session_state.username
-email = st.session_state.email
+if "username" not in st.session_state or st.session_state.username == "":
+    st.error("Username information is missing. Please logout and login again.")
+    st.stop()
 
-API_INVENTORY = f"http://localhost:8000/api/inventory/{username}"
-API_SHOPPING_LIST = f"http://localhost:8000/api/shopping-list/{email}"
+USERNAME = st.session_state.username
+EMAIL = st.session_state.email
+
+API_INVENTORY = f"http://localhost:8000/api/inventory/{USERNAME}"
+API_SHOPPING_LIST = f"http://localhost:8000/api/shopping-list/{EMAIL}"
+API_TOGGLE_ITEM = "http://localhost:8000/api/shopping-list/toggle" 
+API_CLEAR_CHECKED = f"http://localhost:8000/api/shopping-list/clear/{EMAIL}"
 
 st.title("🛒 My Grocery List")
 st.write("Here you can see your home inventory and the items you need to buy.")
 
-home_items = []
+def toggle_item(item_id, current_status):
+    try:
+        requests.put(f"{API_TOGGLE_ITEM}/{item_id}", json={"is_checked": not current_status})
+    except Exception:
+        st.toast("🚨 Error updating item status!")
 
-try:
-    inventory_response = requests.get(API_INVENTORY)
-
-    if inventory_response.status_code == 200:
-        inventory_data = inventory_response.json()
-
-        if inventory_data.get("status") == "success":
-            home_items = inventory_data.get("data", [])
+def clear_checked_items():
+    try:
+        response = requests.delete(API_CLEAR_CHECKED)
+        if response.status_code == 200:
+            st.success("✅ Checked items removed from list!")
         else:
-            st.warning(inventory_data.get("message", "No inventory data found."))
-
-    else:
-        st.error("Backend Error: Failed to load inventory.")
-        st.write(inventory_response.text)
-
-except requests.exceptions.ConnectionError:
+            st.error("Failed to clear items.")
+    except Exception:
+        st.error("Backend connection error!")
+home_items = []
+try:
+    inv_res = requests.get(API_INVENTORY)
+    if inv_res.status_code == 200 and inv_res.json().get("status") == "success":
+        home_items = inv_res.json().get("data", [])
+except:
     st.error("🚨 CONNECTION ERROR: Backend is not running.")
 
 shopping_items = []
-
 try:
-    shopping_response = requests.get(API_SHOPPING_LIST)
-
-    if shopping_response.status_code == 200:
-        shopping_data = shopping_response.json()
-
-        if shopping_data.get("status") == "success":
-            shopping_items = shopping_data.get("data", [])
-        else:
-            st.info(shopping_data.get("message", "Your shopping list is empty."))
-
-    else:
-        st.warning("Shopping list endpoint is not ready yet.")
-        st.write(shopping_response.text)
-
-except requests.exceptions.ConnectionError:
+    shop_res = requests.get(API_SHOPPING_LIST)
+    if shop_res.status_code == 200 and shop_res.json().get("status") == "success":
+        shopping_items = shop_res.json().get("data", [])
+except:
     st.error("🚨 CONNECTION ERROR: Backend is not running.")
-
 
 col1, col2 = st.columns(2)
 
-
 with col1:
     st.subheader("🏠 Currently at Home")
-
     if home_items:
         for item in home_items:
             name = item.get("name", "")
             amount = item.get("amount", "")
             unit = item.get("unit", "")
-
             st.info(f"✅ {name}: {amount} {unit}")
     else:
         st.info("No items found in your inventory.")
 
-
 with col2:
     st.subheader("🛒 Items To Buy")
-
     if shopping_items:
         for item in shopping_items:
             item_name = item.get("item_name", "")
             amount = item.get("amount", "")
             unit = item.get("unit", "")
             is_checked = item.get("is_checked", False)
+            item_id = item.get("id")
 
             st.checkbox(
-                f"Buy {amount} {unit} {item_name}",
+                f"{amount} {unit} {item_name}",
                 value=is_checked,
-                key=f"shopping_item_{item.get('id')}"
+                key=f"shopping_item_{item_id}",
+                on_change=toggle_item,
+                args=(item_id, is_checked)
             )
+            
+        if any(item.get("is_checked") for item in shopping_items):
+            st.write("") # Boşluk
+            if st.button("🗑️ Clear Purchased Items", use_container_width=True):
+                clear_checked_items()
+                st.rerun()
     else:
-        st.success("Your shopping list is empty.")
+        st.success("Your shopping list is empty. 🥳")
 
 st.divider()
 

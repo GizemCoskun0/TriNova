@@ -7,6 +7,7 @@ from typing import List, Optional
 from fastapi import Depends
 from sqlalchemy.orm import Session
 from database import get_db
+from pydantic import BaseModel
 import models
 import json
 import sys  # EKLENDİ
@@ -233,7 +234,9 @@ def add_inventory(item: InventoryItem, db: Session = Depends(get_db)):
     ).first()
     
     if existing_item:
-        return {"status": "error", "message": f"'{item.item_name}' already exists in the inventory!"}
+        existing_item.amount += item.amount
+        db.commit()
+        return {"status": "success", "message": f"'{item.item_name}' amount updated (+{item.amount})!"}
 
     new_item = models.Inventory(user_id=user.id, name=item.item_name, amount=item.amount, unit=item.unit)
     db.add(new_item)
@@ -577,19 +580,38 @@ def check_meal_plan_ingredients(request: MealPlanItemRequest, db: Session = Depe
         "available_items": available_items,
         "missing_items": missing_items
     }
-# Shopping list retrieval endpoint - This will be called when Streamlit loads to display the current shopping list for the user.
+
 @app.get("/api/shopping-list/{email}")
 def get_shopping_list(email: str, db: Session = Depends(get_db)):
-
     db_user = db.query(models.User).filter(models.User.email == email).first()
 
     if not db_user:
-        return {
-            "status": "error",
-            "message": "User not found."
-        }
+        return {"status": "error", "message": "User not found."}
 
     shopping_items = db.query(models.ShoppingListItem).filter(
+        models.ShoppingListItem.user_email == email
+    ).all()
+    
+    inventory_items = db.query(models.Inventory).filter(
+        models.Inventory.user_id == db_user.id
+    ).all()
+
+    for shop_item in shopping_items:
+        for inv_item in inventory_items:
+            inv_name = inv_item.name.lower()
+            shop_name = shop_item.item_name.lower()
+
+            if inv_name in shop_name or shop_name in inv_name:
+                if inv_item.amount >= shop_item.amount:
+                    db.delete(shop_item) 
+                    break 
+                else:
+                    shop_item.amount -= inv_item.amount
+                    break
+
+    db.commit()
+
+    updated_shopping_items = db.query(models.ShoppingListItem).filter(
         models.ShoppingListItem.user_email == email
     ).all()
 
@@ -604,7 +626,7 @@ def get_shopping_list(email: str, db: Session = Depends(get_db)):
                 "source_recipe_title": item.source_recipe_title,
                 "is_checked": item.is_checked
             }
-            for item in shopping_items
+            for item in updated_shopping_items
         ]
     }
 # Meal plan retrieval endpoint - This will be called when Streamlit loads to display the current meal plan for the user.
@@ -670,4 +692,49 @@ def get_meal_plan(email: str, db: Session = Depends(get_db)):
             }
             for item in meal_plan_items
         ]
+        
     }
+class ItemToggleRequest(BaseModel):
+    is_checked: bool
+
+@app.put("/api/shopping-list/toggle/{item_id}")
+def toggle_shopping_item(item_id: int, request: ItemToggleRequest, db: Session = Depends(get_db)):
+    item = db.query(models.ShoppingListItem).filter(models.ShoppingListItem.id == item_id).first()
+    if item:
+        item.is_checked = request.is_checked
+        db.commit()
+        return {"status": "success"}
+    return {"status": "error", "message": "Item not found"}
+
+@app.delete("/api/shopping-list/clear/{email}")
+def clear_checked_items(email: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        return {"status": "error", "message": "User not found"}
+
+    checked_items = db.query(models.ShoppingListItem).filter(
+        models.ShoppingListItem.user_email == email,
+        models.ShoppingListItem.is_checked == True
+    ).all()
+
+    for item in checked_items:
+        existing_inv_item = db.query(models.Inventory).filter(
+            models.Inventory.user_id == user.id,
+            models.Inventory.name == item.item_name
+        ).first()
+
+        if existing_inv_item:
+            existing_inv_item.amount += item.amount
+        else:
+            new_inv_item = models.Inventory(
+                user_id=user.id,
+                name=item.item_name,
+                amount=item.amount,
+                unit=item.unit
+            )
+            db.add(new_inv_item)
+
+        db.delete(item)
+
+    db.commit()
+    return {"status": "success", "message": "Items successfully moved to inventory!"}
