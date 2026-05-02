@@ -5,9 +5,19 @@ st.title("📸 Smart Kitchen Inventory")
 st.write("Manage your ingredients using AI camera or manual entry. (Connected to Database 🚀)")
 st.divider()
 
+# --- 1. SORUNUN ÇÖZÜMÜ: OTOMATİK KULLANICI TANIMA ---
 st.sidebar.subheader("👤 Active User")
-USERNAME = st.sidebar.text_input("Username", value="beyza_dev")
+
+# app.py'de giriş yapıldığında genellikle session_state içinde tutulur
+if "username" in st.session_state:
+    USERNAME = st.session_state["username"]
+    st.sidebar.success(f"Logged in as: {USERNAME}")
+else:
+    # Eğer session_state boşsa, lütfen kutuya veritabanına kayıt olduğun İSMİ YAZ
+    USERNAME = st.sidebar.text_input("Username", value="merve_gunes") 
+
 API_URL = "http://localhost:8000/api/inventory"
+API_ANALYZE_URL = "http://localhost:8000/api/analyze-image"
 
 
 def fetch_inventory():
@@ -25,7 +35,6 @@ def add_item(item_name):
         response = requests.post(API_URL, json=payload)
         return response.json()
     except Exception:
-        st.error("Backend connection error! Is Uvicorn working?")
         return {"status": "error", "message": "Backend connection error!"}
 
 def delete_item(item_id):
@@ -33,7 +42,6 @@ def delete_item(item_id):
         response = requests.delete(f"{API_URL}/{item_id}")
         return response.json()
     except Exception:
-        st.error("Backend connection error! Is Uvicorn working?")
         return {"status": "error", "message": "Backend connection error!"}
 
 
@@ -43,7 +51,6 @@ with col1:
     st.subheader("🤖 AI Scanner & Uploader")
     st.info("Show your ingredients to the camera or upload a photo to detect them automatically.")
     
-    # --- YENİ EKLENEN KISIM: Kamera ve Dosya Yükleme Sekmeleri ---
     tab1, tab2 = st.tabs(["📸 Camera", "📂 Upload Image"])
     
     with tab1:
@@ -52,24 +59,60 @@ with col1:
     with tab2:
         uploaded_picture = st.file_uploader("Upload an image of your ingredients", type=["jpg", "jpeg", "png"])
 
-    # Kullanıcı kamerayı mı kullandı yoksa dosya mı yükledi kontrolü
     picture = camera_picture if camera_picture else uploaded_picture
-    # -------------------------------------------------------------
+
+    # Yapay zekanın çalışıp çalışmadığını ve bulduğu malzemeleri hafızada tutuyoruz
+    if 'ai_analyzed' not in st.session_state:
+        st.session_state.ai_analyzed = False
+    if 'detected_items_list' not in st.session_state:
+        st.session_state.detected_items_list = []
 
     if picture:
         st.image(picture, caption="Selected Image", use_container_width=True)
         if st.button("🔍 Analyze with AI"):
-            with st.spinner("AI is identifying ingredients..."):
+            with st.spinner("AI is analyzing the image..."):
                 
-                # Burası şimdilik test listesi, bir sonraki adımda yapay zekadan gelecek!
-                detected_items = ["Tomato", "Cheese"] 
-                for item in detected_items:
-                    res = add_item(item)
-                    if res.get("status") == "success":
-                        st.success(f"✅ '{item}' eklendi!")
+                try:
+                    files = {"file": ("image.jpg", picture.getvalue(), "image/jpeg")}
+                    response = requests.post(API_ANALYZE_URL, files=files)
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data.get("status") == "success":
+                            detected_items = data.get("detected_items", [])
+                            
+                            # --- 2. SORUNUN ÇÖZÜMÜ: BULUNANLARI HAFIZAYA KAYDET ---
+                            st.session_state.detected_items_list = detected_items
+                            
+                            if not detected_items:
+                                st.warning("🤷 AI couldn't detect any ingredients in this image.")
+                            else:
+                                for item in detected_items:
+                                    res = add_item(item.capitalize())
+                                    if res.get("status") != "success":
+                                        st.error(f"⚠️ Error adding {item}: {res.get('message')}")
+                            
+                            st.session_state.ai_analyzed = True
+                        else:
+                            st.error(f"AI Error: {data.get('message')}")
                     else:
-                        st.warning(f"⚠️ {res.get('message')}")
+                        st.error("Failed to reach the AI server. Is Uvicorn running?")
+                except Exception as e:
+                    st.error(f"Connection error: {e}")
+                
             st.rerun() 
+        
+        # --- EKRANDA BULUNAN MALZEMELERİ GÖSTERME KISMI ---
+        if st.session_state.ai_analyzed:
+             st.success("✨ Analysis complete!")
+             
+             found_items = st.session_state.detected_items_list
+             if found_items:
+                 items_str = ", ".join([item.capitalize() for item in found_items])
+                 st.info(f"🔍 **Detected:** {items_str}\n\nWould you like to add anything else manually from the right side before generating your meal plan?")
+             else:
+                 st.info("No items were detected. You can add them manually from the right side.")
+        # -------------------------------------------------
 
 with col2:
     st.subheader("✍️ Manual Add & Current Stock")
@@ -102,5 +145,49 @@ with col2:
                 st.rerun()
 
 st.divider()
-if st.button("🚀 Generate Meal Plan with These Ingredients", use_container_width=True):
-    st.success("All data is stored in the database! Now a plan can be created.")
+if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True):
+    inventory_items = fetch_inventory()
+    
+    if not inventory_items:
+        st.warning("Your kitchen is empty! Add some ingredients first.")
+    else:
+        with st.spinner("Finding delicious recipes for you..."):
+            # Veritabanındaki malzemelerin sadece isimlerini alıp virgüllü bir string yapıyoruz
+            ingredients_list = [item['name'] for item in inventory_items]
+            ingredients_str = ",".join(ingredients_list)
+            
+            try:
+                # Backend'deki /api/recipes rotasına GET isteği atıyoruz
+                RECIPES_API_URL = "http://localhost:8000/api/recipes"
+                response = requests.get(RECIPES_API_URL, params={"ingredients": ingredients_str})
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("status") == "success":
+                        recipes = data.get("data", [])
+                        
+                        if recipes:
+                            st.success("✨ Here are some recipes you can make right now!")
+                            
+                            # Gelen tarifleri ekranda şık bir şekilde listeliyoruz
+                            for recipe in recipes:
+                                with st.expander(f"🍲 {recipe['title']}"):
+                                    col_img, col_info = st.columns([1, 2])
+                                    with col_img:
+                                        st.image(recipe['image'], use_container_width=True)
+                                    with col_info:
+                                        st.write(f"**Used Ingredients:** {recipe['usedIngredientCount']}")
+                                        st.write(f"**Missing Ingredients:** {recipe['missedIngredientCount']}")
+                                        
+                                        # Eğer eksik malzeme varsa onları da gösterelim
+                                        if recipe['missedIngredientCount'] > 0:
+                                            missed = [m['name'] for m in recipe['missedIngredients']]
+                                            st.warning(f"*(You still need: {', '.join(missed)})*")
+                        else:
+                            st.warning("No recipes found with these specific ingredients.")
+                    else:
+                        st.error(f"API Error: {data.get('message')}")
+                else:
+                    st.error("Failed to fetch recipes from the backend.")
+            except Exception as e:
+                st.error(f"Connection error: {e}")

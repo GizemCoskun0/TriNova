@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile  # File ve UploadFile EKLENDİ
 import models
 from database import engine
 from api_process import AsyncRecipeAPI
@@ -9,6 +9,15 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 import json
+import sys  # EKLENDİ
+import os   # EKLENDİ
+
+# --- YENİ EKLENEN KISIM: AI MODELİNİ İÇERİ AKTARMA ---
+# Backend klasöründen bir üst dizine çıkıp ai_model klasörünü görebilmek için
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(BASE_DIR)
+from ai_model.yolo_detection import analyze_image_from_bytes
+# -----------------------------------------------------
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -242,6 +251,19 @@ def delete_inventory(item_id: int, db: Session = Depends(get_db)):
     db.delete(item)
     db.commit()
     return {"status": "success", "message": "Item deleted successfully!"}
+
+# --- YENİ EKLENEN KISIM: ARAYÜZDEN GELEN FOTOĞRAFI YAKALAYIP AI'A GÖNDEREN KÖPRÜ ---
+@app.post("/api/analyze-image")
+def analyze_image(file: UploadFile = File(...)):
+    try:
+        # await file.read() yerine senkron (normal) okuma yapıyoruz
+        image_bytes = file.file.read()
+        detected_items = analyze_image_from_bytes(image_bytes)
+        return {"status": "success", "detected_items": detected_items}
+    except Exception as e:
+        return {"status": "error", "message": f"AI Analiz Hatası: {str(e)}"}
+# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 
 # Bu fonksiyon, Streamlit her açıldığında veritabanındaki kayıtları okur
 @app.get("/api/profile/{username}")
