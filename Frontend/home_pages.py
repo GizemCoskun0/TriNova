@@ -1,7 +1,7 @@
 import streamlit as st
 
 from auth_utils import set_login_cookie, clear_login_cookie
-from user_db import register_user, check_login
+from user_db import register_user, check_login, get_dashboard_data
 from home_styles import hide_sidebar, load_home_css, load_landing_css
 
 
@@ -24,10 +24,20 @@ def show_landing_page():
     hide_sidebar()
     load_landing_css()
 
-    top_col1, top_col2 = st.columns([3, 1])
+    top_col1, top_col2 = st.columns([4, 1])
 
     with top_col1:
-        st.markdown("## 🍽️ Smart Kitchen Assistant")
+        st.markdown("""
+        <div style="
+            font-size: 26px;
+            font-weight: 800;
+            color: white;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.35);
+            margin-bottom: 20px;
+        ">
+            🍽️ Smart Kitchen Assistant
+        </div>
+    """, unsafe_allow_html=True)
 
     with top_col2:
         if st.button("Login / Register", use_container_width=True):
@@ -150,79 +160,105 @@ def show_login_page():
                 else:
                     st.error("This username or email is already registered.")
 
-
 def show_home_page():
     load_home_css()
+
+    dashboard_data = get_dashboard_data(st.session_state.email)
+
+    if not dashboard_data:
+        st.error("Dashboard data could not be loaded.")
+        return
+
+    inventory_count = dashboard_data["inventory_count"]
+    shopping_count = dashboard_data["shopping_count"]
+    meal_plan_count = dashboard_data["meal_plan_count"]
+    diet = dashboard_data["diet"]
+    allergy_count = dashboard_data["allergy_count"]
 
     st.markdown(f"""
         <div class="hero-box">
             <div class="hero-title">👋 Welcome back, {st.session_state.username}</div>
             <div class="hero-subtitle">
-                Ready to make your kitchen smarter today?<br>
-                Smart Kitchen Assistant helps you organize your kitchen,
-                plan your meals, and manage your grocery needs more easily.
+                Here is your kitchen overview for today.
             </div>
         </div>
     """, unsafe_allow_html=True)
 
     st.markdown(
-        '<div class="section-title">How it works?</div>',
+        '<div class="section-title">🏠 Kitchen Dashboard</div>',
         unsafe_allow_html=True
     )
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.markdown("""
-            <div class="step-card">
-                <div class="step-number">1</div>
-                <div class="step-title">Save your preferences</div>
-                <div class="step-text">
-                    Add your diet type and allergy information from the Profile & Allergies page.
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("""
-            <div class="step-card">
-                <div class="step-number">2</div>
-                <div class="step-title">Add your inventory</div>
-                <div class="step-text">
-                    Enter the ingredients you currently have at home to help the system make better suggestions.
-                </div>
+        st.markdown(f"""
+            <div class="dashboard-card">
+                <div class="dashboard-icon">🍽️</div>
+                <div class="dashboard-title">Meal Plan</div>
+                <div class="dashboard-value">{meal_plan_count}</div>
+                <div class="step-text">saved meal items</div>
             </div>
         """, unsafe_allow_html=True)
 
     with col2:
-        st.markdown("""
-            <div class="step-card">
-                <div class="step-number">3</div>
-                <div class="step-title">Generate your meal plan</div>
-                <div class="step-text">
-                    Create a personalized meal plan based on your preferences and available ingredients.
-                </div>
+        st.markdown(f"""
+            <div class="dashboard-card">
+                <div class="dashboard-icon">🏠</div>
+                <div class="dashboard-title">Inventory</div>
+                <div class="dashboard-value">{inventory_count}</div>
+                <div class="step-text">ingredients at home</div>
             </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("""
-            <div class="step-card">
-                <div class="step-number">4</div>
-                <div class="step-title">Check your grocery list</div>
-                <div class="step-text">
-                    See which ingredients you need to buy before shopping and stay organized.
-                </div>
+    with col3:
+        st.markdown(f"""
+            <div class="dashboard-card">
+                <div class="dashboard-icon">🛒</div>
+                <div class="dashboard-title">Grocery List</div>
+                <div class="dashboard-value">{shopping_count}</div>
+                <div class="step-text">items to buy</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown(
+        '<div class="section-title">📌 Profile Status</div>',
+        unsafe_allow_html=True
+    )
+
+    col4, col5 = st.columns(2)
+
+    with col4:
+        st.markdown(f"""
+            <div class="dashboard-card">
+                <div class="dashboard-icon">🥗</div>
+                <div class="dashboard-title">Diet Preference</div>
+                <div class="dashboard-value" style="font-size:24px;">{diet}</div>
+                <div class="step-text">used for meal suggestions</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col5:
+        st.markdown(f"""
+            <div class="dashboard-card">
+                <div class="dashboard-icon">⚠️</div>
+                <div class="dashboard-title">Allergies</div>
+                <div class="dashboard-value">{allergy_count}</div>
+                <div class="step-text">saved allergy records</div>
             </div>
         """, unsafe_allow_html=True)
 
     st.markdown("""
-        <div class="tip-box">
-            <div class="tip-title">💡 Tip of the day</div>
+        <div class="smart-box">
+            <div class="tip-title">💡 Smart Suggestion</div>
             <div class="tip-text">
-                Keeping your inventory updated helps the system suggest better recipes
-                and create a more accurate grocery list.
+                Keep your inventory updated before generating a new meal plan.
+                This helps the system suggest better recipes and create a more accurate grocery list.
             </div>
         </div>
     """, unsafe_allow_html=True)
+
+    st.divider()
 
     if st.button("🚪 Logout", use_container_width=True):
         logout()

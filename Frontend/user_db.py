@@ -42,3 +42,73 @@ def check_login(email, password):
     conn.close()
 
     return user
+def get_dashboard_data(email):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    # User
+    cursor.execute("""
+        SELECT id, username, email
+        FROM users
+        WHERE email = ?
+    """, (email,))
+    user = cursor.fetchone()
+
+    if not user:
+        conn.close()
+        return None
+
+    user_id = user[0]
+
+    # Inventory count
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM inventory
+        WHERE user_id = ?
+    """, (user_id,))
+    inventory_count = cursor.fetchone()[0]
+
+    # Shopping list count
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM shopping_list_items
+        WHERE user_email = ? AND is_checked = 0
+    """, (email,))
+    shopping_count = cursor.fetchone()[0]
+
+    # Meal plan count
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM meal_plans
+        WHERE user_email = ?
+    """, (email,))
+    meal_plan_count = cursor.fetchone()[0]
+
+    # Diet
+    cursor.execute("""
+        SELECT diets.name
+        FROM diets
+        JOIN user_diets ON diets.id = user_diets.diet_id
+        WHERE user_diets.user_id = ?
+        LIMIT 1
+    """, (user_id,))
+    diet_result = cursor.fetchone()
+    diet = diet_result[0] if diet_result else "None"
+
+    # Allergy count
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM user_allergies
+        WHERE user_id = ?
+    """, (user_id,))
+    allergy_count = cursor.fetchone()[0]
+
+    conn.close()
+
+    return {
+        "inventory_count": inventory_count,
+        "shopping_count": shopping_count,
+        "meal_plan_count": meal_plan_count,
+        "diet": diet,
+        "allergy_count": allergy_count
+    }
