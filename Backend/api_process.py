@@ -25,7 +25,7 @@ class AsyncRecipeAPI:
         # Parameters to send to the API
         params = {
             "ingredients": ingredients_str,
-            "number": 5, # Fetch the top 5 recipes 
+            "number": 15, # Fetch the top 15 recipes 
             "apiKey": API_KEY
         }
 
