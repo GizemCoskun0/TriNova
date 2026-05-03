@@ -1,13 +1,8 @@
 import streamlit as st
 import requests
+from auth_utils import require_login
 
-if "logged_in" not in st.session_state or not st.session_state.logged_in:
-    st.warning("🚨 Please login from the main page first!")
-    st.stop()
-
-if "username" not in st.session_state or st.session_state.username == "":
-    st.error("Username information is missing. Please logout and login again.")
-    st.stop()
+require_login()
 
 USERNAME = st.session_state.username
 EMAIL = st.session_state.email

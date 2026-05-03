@@ -2,32 +2,15 @@ import streamlit as st
 import requests
 import json
 import re
+from auth_utils import require_login
 
-# -------------------------------------------------
-# SECURITY CHECK
-# -------------------------------------------------
-
-if "logged_in" not in st.session_state or not st.session_state.logged_in:
-    st.warning("🚨 Please login from the main page first!")
-    st.stop()
-
-if "username" not in st.session_state or st.session_state.username == "":
-    st.error("Username information is missing. Please logout and login again.")
-    st.stop()
+require_login()
 
 USERNAME = st.session_state.username
 EMAIL = st.session_state.email
 
-# -------------------------------------------------
-# SESSION STATE
-# -------------------------------------------------
-
 if "ingredient_checks" not in st.session_state:
     st.session_state.ingredient_checks = {}
-
-# -------------------------------------------------
-# API URLS
-# -------------------------------------------------
 
 API_GET_PLAN = f"http://localhost:8000/api/meal-plan/{EMAIL}"
 API_GENERATE_PLAN = "http://localhost:8000/api/meal-plan/generate"
@@ -129,26 +112,15 @@ def fetch_inventory_count():
     return 0
 
 
-# -------------------------------------------------
-# LOAD CURRENT DATA
-# -------------------------------------------------
-
 meal_plan = fetch_meal_plan()
 current_diet, current_allergies = fetch_profile_summary()
 inventory_count = fetch_inventory_count()
-
-# -------------------------------------------------
-# PAGE HEADER
-# -------------------------------------------------
 
 st.title("🍽️ My Meal Plan")
 st.write("Create and manage your personalized meal plan based on your diet, allergies, and home inventory.")
 
 st.divider()
 
-# -------------------------------------------------
-# USER SUMMARY CARDS
-# -------------------------------------------------
 
 st.subheader("📌 Plan Summary")
 
@@ -173,10 +145,6 @@ else:
     st.caption("Allergies: None")
 
 st.divider()
-
-# -------------------------------------------------
-# GENERATE / REGENERATE PLAN
-# -------------------------------------------------
 
 st.subheader("⚙️ Meal Plan Actions")
 
@@ -216,10 +184,6 @@ if st.button(button_label, use_container_width=True):
             st.error("🚨 CONNECTION ERROR: Backend is not running.")
 
 st.divider()
-
-# -------------------------------------------------
-# SHOW MEAL PLAN
-# -------------------------------------------------
 
 st.subheader("📅 Your Current Plan")
 
@@ -334,9 +298,6 @@ for day in days:
                             except requests.exceptions.ConnectionError:
                                 st.error("🚨 CONNECTION ERROR: Backend is not running.")
 
-                    # -------------------------------------------------
-                    # SHOW CHECK RESULT INSIDE SAME RECIPE CARD
-                    # -------------------------------------------------
 
                     check_result = st.session_state.ingredient_checks.get(str(meal_plan_id))
 
@@ -407,10 +368,6 @@ for day in days:
                             st.success("You have all ingredients for this recipe!")
 
     st.divider()
-
-# -------------------------------------------------
-# EXPORT PLACEHOLDER
-# -------------------------------------------------
 
 if st.button("📥 Export to PDF", use_container_width=True):
     st.info("PDF export feature will be available soon.")
