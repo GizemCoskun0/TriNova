@@ -53,6 +53,8 @@ def init_session_state():
 
     if "manual_logout" not in st.session_state:
         st.session_state.manual_logout = False
+    if "auth_view" not in st.session_state:
+        st.session_state.auth_view = "landing"    
 
 
 def set_login_cookie(email):
