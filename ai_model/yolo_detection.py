@@ -1,13 +1,12 @@
 from ultralytics import YOLO
 import os
 import cv2  
-import numpy as np # DISARIDAN GELEN FOTOGRAFI OKUMAK ICIN EKLENDI
+import numpy as np 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(BASE_DIR, 'weights.pt')
 
-# --- YENI EKLENEN KISIM: API ICIN DINAMIK FOTOGRAF OKUMA FONKSIYONU ---
-# Modeli her seferinde bastan yukleyip sistemi yavaslatmamak icin globalde tutuyoruz
+
 _model = None
 
 def get_model():
@@ -23,7 +22,7 @@ def analyze_image_from_bytes(image_bytes):
     FastAPI'den gelen fotograf bytelarini okur, 
     YOLO modeline sokar ve bulunan malzemelerin listesini dondurur.
     """
-    # Gelen bytelari OpenCV formatina ceviriyoruz
+    
     nparr = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     
@@ -38,10 +37,8 @@ def analyze_image_from_bytes(image_bytes):
             found_ingredients.add(class_name)
             
     return list(found_ingredients)
-# -----------------------------------------------------------------------
 
 
-# SENIN ORİJİNAL TEST FONKSİYONUN (HİÇBİR ŞEY DEĞİŞTİRİLMEDİ)
 def test_single_image_visual():
     if not os.path.exists(model_path):
         print(f"❌ Error: '{model_path}' not found.")
