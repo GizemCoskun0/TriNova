@@ -16,6 +16,7 @@ API_INVENTORY = f"http://localhost:8000/api/inventory/{USERNAME}"
 API_SHOPPING_LIST = f"http://localhost:8000/api/shopping-list/{EMAIL}"
 API_TOGGLE_ITEM = "http://localhost:8000/api/shopping-list/toggle" 
 API_CLEAR_CHECKED = f"http://localhost:8000/api/shopping-list/clear/{EMAIL}"
+API_RECALCULATE_SHOPPING_LIST = f"http://localhost:8000/api/shopping-list/recalculate/{EMAIL}"
 
 st.title("🛒 My Grocery List")
 st.write("Here you can see your home inventory and the items you need to buy.")
@@ -35,6 +36,26 @@ def clear_checked_items():
             st.error("Failed to clear items.")
     except Exception:
         st.error("Backend connection error!")
+
+if st.button("🔄 Recalculate Shopping List", use_container_width=True):
+    try:
+        response = requests.post(API_RECALCULATE_SHOPPING_LIST)
+
+        if response.status_code == 200:
+            data = response.json()
+
+            if data.get("status") == "success":
+                st.success("✅ Shopping list recalculated successfully!")
+                st.rerun()
+            else:
+                st.error(data.get("message", "Failed to recalculate shopping list."))
+        else:
+            st.error("Backend Error: Failed to recalculate shopping list.")
+            st.write(response.text)
+
+    except Exception:
+        st.error("🚨 CONNECTION ERROR: Backend is not running.")
+
 home_items = []
 try:
     inv_res = requests.get(API_INVENTORY)
