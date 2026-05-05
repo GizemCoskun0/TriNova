@@ -1,4 +1,8 @@
-from ultralytics import YOLO
+try:
+    from ultralytics import YOLO  # type: ignore[import]
+except ImportError as e:
+    raise ImportError("ultralytics package not found. Install with 'pip install ultralytics'.") from e
+
 import os
 import cv2  
 import numpy as np # DISARIDAN GELEN FOTOGRAFI OKUMAK ICIN EKLENDI
