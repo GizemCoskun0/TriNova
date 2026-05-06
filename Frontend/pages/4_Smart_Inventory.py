@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 
-# --- 1. GÜVENLİK VE OTURUM KONTROLÜ (Diğer sayfalarındaki gibi) ---
 if "logged_in" not in st.session_state or not st.session_state.logged_in:
     st.warning("🚨 Please login from the main page first!")
     st.stop()
@@ -10,7 +9,6 @@ if "username" not in st.session_state or st.session_state.username == "":
     st.error("Username information is missing. Please logout and login again.")
     st.stop()
 
-# --- 2. KULLANICI ADINI OTURUMDAN KESİN OLARAK ALIYORUZ ---
 USERNAME = st.session_state.username
 API_URL = "http://localhost:8000/api/inventory"
 
@@ -18,22 +16,18 @@ st.title("📸 Smart Kitchen Inventory")
 st.write("Manage your ingredients using AI camera or manual entry. (Connected to Database 🚀)")
 st.divider()
 
-# --- 1. SORUNUN ÇÖZÜMÜ: OTOMATİK KULLANICI TANIMA ---
 st.sidebar.subheader("👤 Active User")
 
-# app.py'de giriş yapıldığında genellikle session_state içinde tutulur
 if "username" in st.session_state:
     USERNAME = st.session_state["username"]
     st.sidebar.success(f"Logged in as: {USERNAME}")
 else:
-    # Eğer session_state boşsa, lütfen kutuya veritabanına kayıt olduğun İSMİ YAZ
     USERNAME = st.sidebar.text_input("Username", value="merve_gunes") 
 
 API_URL = "http://localhost:8000/api/inventory"
 API_ANALYZE_URL = "http://localhost:8000/api/analyze-image"
 
 
-# --- FONKSİYONLAR ---
 def fetch_inventory():
     try:
         response = requests.get(f"{API_URL}/{USERNAME}")
@@ -54,6 +48,9 @@ def add_item(item_name, amount=1.0):
     except Exception:
         return {"status": "error", "message": "Backend connection error!"}
 
+def update_shopping_list_after_inventory_add():
+    pass
+
 def delete_item(item_id):
     try:
         response = requests.delete(f"{API_URL}/{item_id}")
@@ -61,7 +58,6 @@ def delete_item(item_id):
     except Exception:
         return {"status": "error", "message": "Backend connection error!"}
 
-# --- ARAYÜZ (UI) ---
 col1, col2 = st.columns([1, 1])
 
 with col1:
@@ -78,7 +74,6 @@ with col1:
 
     picture = camera_picture if camera_picture else uploaded_picture
 
-    # Yapay zekanın çalışıp çalışmadığını ve bulduğu malzemeleri hafızada tutuyoruz
     if 'ai_analyzed' not in st.session_state:
         st.session_state.ai_analyzed = False
     if 'detected_items_list' not in st.session_state:
@@ -98,7 +93,6 @@ with col1:
                         if data.get("status") == "success":
                             detected_items = data.get("detected_items", [])
                             
-                            # --- 2. SORUNUN ÇÖZÜMÜ: BULUNANLARI HAFIZAYA KAYDET ---
                             st.session_state.detected_items_list = detected_items
                             
                             if not detected_items:
@@ -108,6 +102,7 @@ with col1:
                                     res = add_item(item.capitalize())
                                     if res.get("status") != "success":
                                         st.error(f"⚠️ Error adding {item}: {res.get('message')}")
+                                update_shopping_list_after_inventory_add()
                             
                             st.session_state.ai_analyzed = True
                         else:
@@ -119,7 +114,7 @@ with col1:
                 
             st.rerun() 
         
-        # --- EKRANDA BULUNAN MALZEMELERİ GÖSTERME KISMI ---
+
         if st.session_state.ai_analyzed:
              st.success("✨ Analysis complete!")
              
@@ -129,26 +124,41 @@ with col1:
                  st.info(f"🔍 **Detected:** {items_str}\n\nWould you like to add anything else manually from the right side before generating your meal plan?")
              else:
                  st.info("No items were detected. You can add them manually from the right side.")
-        # -------------------------------------------------
+
+
 
 with col2:
     st.subheader("✍️ Manual Add & Current Stock")
 
-    input_col1, input_col2 = st.columns([3, 1])
-    with input_col1:
-        new_item = st.text_input("Ingredient:", placeholder="e.g., Asparagus, Milk")
-    with input_col2:
-        item_amount = st.number_input("Qty", min_value=0.1, value=1.0, step=1.0)
+    if "new_ingredient_name" not in st.session_state:
+        st.session_state.new_ingredient_name = ""
+    if "new_ingredient_qty" not in st.session_state:
+        st.session_state.new_ingredient_qty = 1.0
 
-    if st.button("➕ Add to My Kitchen", use_container_width=True):
-        if new_item:
-            clean_name = new_item.strip().capitalize()
-            res = add_item(clean_name, amount=item_amount)
+    def handle_add_item():
+        item_name = st.session_state.new_ingredient_name
+        item_qty = st.session_state.new_ingredient_qty
+        
+        if item_name:
+            clean_name = item_name.strip().capitalize()
+            res = add_item(clean_name, amount=item_qty)
             if res.get("status") == "success":
-                st.toast(f"{item_amount} {clean_name} added to database!")
-                st.rerun()
+                st.toast(f"{item_qty} {clean_name} added to database!")
+            
+                st.session_state.new_ingredient_name = ""
+                st.session_state.new_ingredient_qty = 1.0
+                
+                update_shopping_list_after_inventory_add()
             else:
                 st.error(res.get("message"))
+
+    input_col1, input_col2 = st.columns([3, 1])
+    with input_col1:
+        st.text_input("Ingredient:", placeholder="e.g., Asparagus, Milk", key="new_ingredient_name")
+    with input_col2:
+        st.number_input("Qty", min_value=0.1, step=1.0, key="new_ingredient_qty")
+
+    st.button("➕ Add to My Kitchen", use_container_width=True, on_click=handle_add_item)
                 
     st.divider()
 
@@ -167,6 +177,7 @@ with col2:
                 delete_item(item['id'])
                 st.rerun()
 st.divider()
+
 if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True):
     inventory_items = fetch_inventory()
     
@@ -174,12 +185,10 @@ if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True
         st.warning("Your kitchen is empty! Add some ingredients first.")
     else:
         with st.spinner("Finding delicious recipes for you..."):
-            # Veritabanındaki malzemelerin sadece isimlerini alıp virgüllü bir string yapıyoruz
             ingredients_list = [item['name'] for item in inventory_items]
             ingredients_str = ",".join(ingredients_list)
             
             try:
-                # Backend'deki /api/recipes rotasına GET isteği atıyoruz
                 RECIPES_API_URL = "http://localhost:8000/api/recipes"
                 response = requests.get(RECIPES_API_URL, params={"ingredients": ingredients_str})
                 
@@ -191,7 +200,6 @@ if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True
                         if recipes:
                             st.success("✨ Here are some recipes you can make right now!")
                             
-                            # Gelen tarifleri ekranda şık bir şekilde listeliyoruz
                             for recipe in recipes:
                                 with st.expander(f"🍲 {recipe['title']}"):
                                     col_img, col_info = st.columns([1, 2])
@@ -201,7 +209,6 @@ if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True
                                         st.write(f"**Used Ingredients:** {recipe['usedIngredientCount']}")
                                         st.write(f"**Missing Ingredients:** {recipe['missedIngredientCount']}")
                                         
-                                        # Eğer eksik malzeme varsa onları da gösterelim
                                         if recipe['missedIngredientCount'] > 0:
                                             missed = [m['name'] for m in recipe['missedIngredients']]
                                             st.warning(f"*(You still need: {', '.join(missed)})*")
