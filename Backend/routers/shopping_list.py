@@ -41,54 +41,7 @@ def get_shopping_list(email: str, db: Session = Depends(get_db)):
             for item in shopping_items
         ]
     }
-    db_user = db.query(models.User).filter(models.User.email == email).first()
 
-    if not db_user:
-        return {"status": "error", "message": "User not found."}
-
-    shopping_items = db.query(models.ShoppingListItem).filter(
-        models.ShoppingListItem.user_email == email
-    ).all()
-    
-    inventory_items = db.query(models.Inventory).filter(
-        models.Inventory.user_id == db_user.id
-    ).all()
-
-    for shop_item in shopping_items:
-        for inv_item in inventory_items:
-            inv_name = inv_item.name.lower()
-            shop_name = shop_item.item_name.lower()
-
-            if inv_name in shop_name or shop_name in inv_name:
-                if inv_item.amount >= shop_item.amount:
-                    db.delete(shop_item) 
-                    break 
-                else:
-                    shop_item.amount -= inv_item.amount
-                    break
-
-    db.commit()
-
-    updated_shopping_items = db.query(models.ShoppingListItem).filter(
-        models.ShoppingListItem.user_email == email
-    ).all()
-
-    return {
-        "status": "success",
-        "data": [
-            {
-                "id": item.id,
-                "item_name": item.item_name,
-                "amount": item.amount,
-                "unit": item.unit,
-                "source_recipe_title": item.source_recipe_title,
-                "is_checked": item.is_checked
-            }
-            for item in updated_shopping_items
-        ]
-    }
-
-# Meal plan item ingredient check endpoint - This will be called when the user clicks the "Check Ingredients" button for a specific meal in Streamlit.
 @router.post("/shopping-list/add-missing")
 def add_missing_items_to_shopping_list(request: MealPlanItemRequest, db: Session = Depends(get_db)):
 
@@ -157,6 +110,8 @@ def toggle_shopping_item(item_id: int, request: ItemToggleRequest, db: Session =
     return {"status": "error", "message": "Item not found"}
 
 @router.post("/shopping-list/recalculate/{email}")
+
+
 def recalculate_shopping_list(email: str, db: Session = Depends(get_db)):
 
     db_user = db.query(models.User).filter(
@@ -178,17 +133,20 @@ def recalculate_shopping_list(email: str, db: Session = Depends(get_db)):
     ).all()
 
     for shop_item in shopping_items:
+        total_inv_amount = 0
+        
+        # Sum all matching inventory items for this shopping item
         for inv_item in inventory_items:
             inventory_name = inv_item.name.lower().strip()
             shopping_name = shop_item.item_name.lower().strip()
 
             if inventory_name in shopping_name or shopping_name in inventory_name:
-                if inv_item.amount >= shop_item.amount:
-                    db.delete(shop_item)
-                    break
-                else:
-                    shop_item.amount = shop_item.amount - inv_item.amount
-                    break
+                total_inv_amount += inv_item.amount
+        
+        if total_inv_amount > 0:
+            shop_item.amount = shop_item.amount - total_inv_amount
+            if shop_item.amount <= 0:
+                db.delete(shop_item)
 
     db.commit()
 
