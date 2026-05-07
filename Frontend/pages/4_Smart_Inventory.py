@@ -2,19 +2,8 @@ import streamlit as st
 import requests
 from auth_utils import require_login
 
-<<<<<<< HEAD
 require_login()
 
-=======
-if "logged_in" not in st.session_state or not st.session_state.logged_in:
-    st.warning("🚨 Please login from the main page first!")
-    st.stop()
-
-if "username" not in st.session_state or st.session_state.username == "":
-    st.error("Username information is missing. Please logout and login again.")
-    st.stop()
-
->>>>>>> 800d8a393b82930cf896962cc03b02b5cf2660b4
 USERNAME = st.session_state.username
 EMAIL = st.session_state.email
 API_URL = "http://localhost:8000/api/inventory"
