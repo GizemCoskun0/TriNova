@@ -1,12 +1,18 @@
 import streamlit as st
 import requests
+import json  
 from auth_utils import require_login
 
 require_login()
 
 USERNAME = st.session_state.username
 EMAIL = st.session_state.email
+
+# --- API URL'LERİ ---
 API_URL = "http://localhost:8000/api/inventory"
+API_ANALYZE_URL = "http://localhost:8000/api/analyze-image"
+API_FAVORITES = "http://localhost:8000/api/favorites"              
+API_ADD_SINGLE = "http://localhost:8000/api/meal-plan/add-single"  
 
 st.title("📸 Smart Kitchen Inventory")
 st.write("Manage your ingredients using AI camera or manual entry. (Connected to Database 🚀)")
@@ -20,9 +26,25 @@ if "username" in st.session_state:
 else:
     USERNAME = st.sidebar.text_input("Username", value="merve_gunes") 
 
-API_URL = "http://localhost:8000/api/inventory"
-API_ANALYZE_URL = "http://localhost:8000/api/analyze-image"
+# --- SESSION STATE TANIMLAMALARI (UI KAYBOLMAMASI İÇİN) ---
+if "show_recipes" not in st.session_state:
+    st.session_state.show_recipes = False
+if "fetched_recipes" not in st.session_state:
+    st.session_state.fetched_recipes = []
 
+def get_user_favorite_ids():
+    try:
+        res = requests.get(f"{API_FAVORITES}/{EMAIL}")
+        if res.status_code == 200:
+            data = res.json()
+            if data.get("status") == "success":
+                return [f["recipe_id"] for f in data.get("data", [])]
+            
+    except:
+        pass
+    return []
+
+user_favorites = get_user_favorite_ids()    
 
 def fetch_inventory():
     try:
@@ -110,7 +132,6 @@ with col1:
                 
             st.rerun() 
         
-
         if st.session_state.ai_analyzed:
              st.success("✨ Analysis complete!")
              
@@ -120,8 +141,6 @@ with col1:
                  st.info(f"🔍 **Detected:** {items_str}\n\nWould you like to add anything else manually from the right side before generating your meal plan?")
              else:
                  st.info("No items were detected. You can add them manually from the right side.")
-
-
 
 with col2:
     st.subheader("✍️ Manual Add & Current Stock")
@@ -172,13 +191,16 @@ with col2:
             if c2.button("🗑️", key=f"del_{item['id']}"):
                 delete_item(item['id'])
                 st.rerun()
+
 st.divider()
 
+# --- 1. SADECE API İSTEĞİNİ YAPAN BUTON ---
 if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True):
     inventory_items = fetch_inventory()
     
     if not inventory_items:
         st.warning("Your kitchen is empty! Add some ingredients first.")
+        st.session_state.show_recipes = False
     else:
         with st.spinner("Finding delicious recipes for you..."):
             ingredients_list = [item['name'] for item in inventory_items]
@@ -191,28 +213,117 @@ if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True
                 if response.status_code == 200:
                     data = response.json()
                     if data.get("status") == "success":
-                        recipes = data.get("data", [])
-                        
-                        if recipes:
-                            st.success("✨ Here are some recipes you can make right now!")
-                            
-                            for recipe in recipes:
-                                with st.expander(f"🍲 {recipe['title']}"):
-                                    col_img, col_info = st.columns([1, 2])
-                                    with col_img:
-                                        st.image(recipe['image'], use_container_width=True)
-                                    with col_info:
-                                        st.write(f"**Used Ingredients:** {recipe['usedIngredientCount']}")
-                                        st.write(f"**Missing Ingredients:** {recipe['missedIngredientCount']}")
-                                        
-                                        if recipe['missedIngredientCount'] > 0:
-                                            missed = [m['name'] for m in recipe['missedIngredients']]
-                                            st.warning(f"*(You still need: {', '.join(missed)})*")
-                        else:
-                            st.warning("No recipes found with these specific ingredients.")
+                        st.session_state.fetched_recipes = data.get("data", [])
+                        st.session_state.show_recipes = True # Tarifleri göstermek için tetikleyiciyi açtık
                     else:
                         st.error(f"API Error: {data.get('message')}")
                 else:
                     st.error("Failed to fetch recipes from the backend.")
             except Exception as e:
                 st.error(f"Connection error: {e}")
+
+# --- 2. TARİFLERİ SESSION STATE'TEN OKUYUP ÇİZEN KISIM ---
+if st.session_state.show_recipes:
+    recipes = st.session_state.fetched_recipes
+    
+    if recipes:
+        st.success("✨ Here are some recipes you can make right now!")
+        
+        for recipe in recipes:
+            with st.expander(f"🍲 {recipe['title']}"):
+                col_img, col_info = st.columns([1, 2])
+                
+                with col_img:
+                    st.image(recipe['image'], use_container_width=True)
+
+
+                    is_fav = recipe['id'] in user_favorites
+                    heart_icon = "❤️ Favorilerde" if is_fav else "🤍 Favorilere Ekle"
+
+                    if st.button(heart_icon, key=f"fav_btn_{recipe['id']}"):
+                        all_ingredients = recipe.get("usedIngredients", []) + recipe.get("missedIngredients", [])
+                        ingredients_data = {"ingredients": all_ingredients}
+                        
+                        payload = {
+                            "email": EMAIL,
+                            "recipe_id": recipe['id'],
+                            "recipe_title": recipe['title'],
+                            "recipe_image": recipe['image'],
+                            "source_url": recipe.get('sourceUrl', ''),
+                            "ingredients_json": json.dumps(ingredients_data) 
+                        }
+                        res = requests.post(API_FAVORITES, json=payload)
+                        if res.status_code == 200:
+                            st.rerun() 
+                            
+                with col_info:
+                    st.write(f"**Used Ingredients:** {recipe['usedIngredientCount']}")
+                    st.write(f"**Missing Ingredients:** {recipe['missedIngredientCount']}")
+                    
+                    if recipe['missedIngredientCount'] > 0:
+                        missed = [m['name'] for m in recipe['missedIngredients']]
+                        st.warning(f"*(You still need: {', '.join(missed)})*")
+                        
+                    st.divider()
+                    st.write("📅 **Add to Plan**")
+
+                col_day, col_meal = st.columns(2)
+
+                with col_day:
+                    selected_day = st.selectbox("Day", ["Day 1", "Day 2", "Day 3"], key=f"day_{recipe['id']}")
+                with col_meal:
+                    selected_meal = st.selectbox("Meal", ["Breakfast", "Lunch", "Dinner"], key=f"meal_{recipe['id']}")
+    
+                plan_state_key = f"inv_plan_info_{recipe['id']}"
+
+                if st.button("➕ Add to Plan", key=f"add_plan_{recipe['id']}", use_container_width=True):
+                                                                
+                    all_ingredients = recipe.get("usedIngredients", []) + recipe.get("missedIngredients", [])
+                    ingredients_data = {"ingredients": all_ingredients}
+                    
+                    payload = {
+                        "email": EMAIL,
+                        "recipe_id": recipe['id'],
+                        "recipe_title": recipe['title'],
+                        "recipe_image": recipe['image'],
+                        "day": selected_day,
+                        "meal_type": selected_meal,
+                        "ingredients_json": json.dumps(ingredients_data)
+                    }
+                    
+                    with st.spinner("Checking kitchen inventory..."):
+                        res = requests.post(API_ADD_SINGLE, json=payload)
+                        
+                        if res.status_code == 200:
+                            data = res.json()
+                            st.session_state[plan_state_key] = {
+                                "meal_plan_id": data.get("meal_plan_id"),
+                                "missing_items": data.get("missing_items", [])
+                            }
+                            st.success(data.get("message"))
+                        else:
+                            st.error("Failed to communicate with the backend!")
+
+                if plan_state_key in st.session_state:
+                    missing_items = st.session_state[plan_state_key]["missing_items"]
+                    meal_plan_id = st.session_state[plan_state_key]["meal_plan_id"]
+                    
+                    if missing_items:
+                        st.warning(f"⚠️ You are missing {len(missing_items)} ingredients:")
+                        for m in missing_items:
+                            st.write(f"- {m['name']} ({m['amount']} {m['unit']})")
+                            
+                        API_ADD_MISSING = "http://localhost:8000/api/shopping-list/add-missing"
+                        if st.button("🛒 Add Missing Items to Grocery List", key=f"inv_cart_{recipe['id']}", use_container_width=True):
+                            missing_payload = {"meal_plan_id": meal_plan_id, "email": EMAIL}
+                            m_res = requests.post(API_ADD_MISSING, json=missing_payload)
+                            if m_res.status_code == 200:
+                                st.success("✅ Items added to Grocery List!")
+                                del st.session_state[plan_state_key]
+                                st.rerun()
+                    else:
+                        st.success("🎉 You have all the ingredients at home!")
+            # --------------------------------------
+
+    else:
+        st.warning("No recipes found with these specific ingredients.")

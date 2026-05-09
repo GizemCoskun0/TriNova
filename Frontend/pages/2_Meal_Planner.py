@@ -18,10 +18,25 @@ API_CHECK_INGREDIENTS = "http://localhost:8000/api/meal-plan/check-ingredients"
 API_ADD_MISSING = "http://localhost:8000/api/shopping-list/add-missing"
 API_PROFILE = f"http://localhost:8000/api/profile/{USERNAME}"
 API_INVENTORY = f"http://localhost:8000/api/inventory/{USERNAME}"
+API_FAVORITES = "http://localhost:8000/api/favorites" # <--- EKSİK OLAN LİNK EKLENDİ
 
 # -------------------------------------------------
 # HELPER FUNCTIONS
 # -------------------------------------------------
+
+def get_user_favorite_ids():
+    try:
+        res = requests.get(f"{API_FAVORITES}/{EMAIL}")
+        if res.status_code == 200:
+            data = res.json()
+            if data.get("status") == "success":
+                return [f["recipe_id"] for f in data.get("data", [])]
+            
+    except:
+        pass
+    return []
+
+user_favorites = get_user_favorite_ids()
 
 def clean_html(text):
     if not text:
@@ -228,6 +243,27 @@ for day in days:
 
                 if item.get("recipe_image"):
                     st.image(item.get("recipe_image"), use_container_width=True)
+
+                recipe_id = item.get("recipe_id")
+                is_fav = recipe_id in user_favorites
+                heart_icon = "❤️ In Favorites" if is_fav else "🤍 Add to Favorites"
+
+                if st.button(heart_icon, key=f"fav_meal_{meal_plan_id}"):
+                    fav_payload = {
+                        "email": EMAIL,
+                        "recipe_id": recipe_id,
+                        "recipe_title": recipe_title,
+                        "recipe_image": item.get("recipe_image"),
+                        "source_url": item.get("source_url", ""),
+                        "ingredients_json": item.get("ingredients", '{"ingredients": []}')
+                    }
+                    try:
+                        res = requests.post(API_FAVORITES, json=fav_payload)
+                        if res.status_code == 200:
+                            st.rerun()
+                    except Exception:
+                        st.toast("Error: Backend could not be reached..")
+                # -----------------------------
 
                 ready_time = item.get("ready_in_minutes", "N/A")
                 servings = item.get("servings", "N/A")
