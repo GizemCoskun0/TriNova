@@ -5,7 +5,7 @@ import json
 import models
 from database import get_db
 from api_process import AsyncRecipeAPI
-from schemas import MealPlanGenerateRequest, MealPlanItemRequest
+from schemas import MealPlanGenerateRequest, MealPlanItemRequest, SingleMealAddRequest
 from services.recipe_filter_service import recipe_matches_user_preferences
 from services.ingredient_service import compare_recipe_with_inventory
 
@@ -14,18 +14,13 @@ router = APIRouter(
     tags=["Meal Plan"]
 )
 
-
-# Meal plan generation endpoint - This is the core of the meal planning feature and will be called when the user clicks the "Generate Meal Plan" button in Streamlit.
+# Meal plan generation endpoint
 @router.post("/meal-plan/generate")
 async def generate_meal_plan(request: MealPlanGenerateRequest, db: Session = Depends(get_db)):
-
     db_user = db.query(models.User).filter(models.User.email == request.email).first()
 
     if not db_user:
-        return {
-            "status": "error",
-            "message": "User not found. Please login or create a profile first."
-        }
+        return {"status": "error", "message": "User not found. Please login or create a profile first."}
 
     user_allergies = [allergy.name for allergy in db_user.allergies]
     user_diets = [diet.name for diet in db_user.diets]
@@ -42,36 +37,24 @@ async def generate_meal_plan(request: MealPlanGenerateRequest, db: Session = Dep
     recipes = await AsyncRecipeAPI.search_by_ingredients(ingredients_list)
 
     if not recipes:
-        return {
-            "status": "error",
-            "message": "No recipes found from the API."
-        }
+        return {"status": "error", "message": "No recipes found from the API."}
 
     suitable_recipes = []
-
     for recipe in recipes:
         if recipe_matches_user_preferences(recipe, user_allergies, user_diets):
             suitable_recipes.append(recipe)
 
     if not suitable_recipes:
-        return {
-            "status": "error",
-            "message": "No suitable recipes found for your diet and allergies."
-        }
+        return {"status": "error", "message": "No suitable recipes found for your diet and allergies."}
 
     meal_types = ["Breakfast", "Lunch", "Dinner"]
     total_needed = request.days * len(meal_types)
 
     if len(suitable_recipes) < total_needed:
-        return {
-            "status": "error",
-            "message": f"Not enough suitable recipes found. Needed {total_needed}, but found {len(suitable_recipes)}."
-        }
+        return {"status": "error", "message": f"Not enough suitable recipes found. Needed {total_needed}, but found {len(suitable_recipes)}."}
 
     # Eski planı siliyoruz, yeni 3 günlük planı kaydedeceğiz
-    db.query(models.MealPlan).filter(
-        models.MealPlan.user_email == request.email
-    ).delete()
+    db.query(models.MealPlan).filter(models.MealPlan.user_email == request.email).delete()
 
     saved_plan = []
     recipe_index = 0
@@ -135,17 +118,60 @@ async def generate_meal_plan(request: MealPlanGenerateRequest, db: Session = Dep
         ]
     }
 
-# Meal plan item ingredient check endpoint - This will be called when the user clicks the "Check Ingredients" button for a specific meal in Streamlit.
+
+#------------------- Tek öğün ekleme endpoint'i ------------------
+@router.post("/meal-plan/add-single")
+def add_single_meal_to_plan(request: SingleMealAddRequest, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.email == request.email).first()
+    
+    if not db_user:
+        return {"status": "error", "message": "User not found."}
+
+    # AYNI GÜN VE ÖĞÜNDE BAŞKA YEMEK VARSA SİL (Üst üste binmesin)
+    existing_meal = db.query(models.MealPlan).filter(
+        models.MealPlan.user_email == request.email,
+        models.MealPlan.plan_day == request.day,
+        models.MealPlan.meal_type == request.meal_type
+    ).first()
+
+    if existing_meal:
+        db.delete(existing_meal)
+        db.commit()
+
+    new_plan = models.MealPlan(
+        user_id=db_user.id,
+        user_email=db_user.email,
+        plan_day=request.day,
+        meal_type=request.meal_type,
+        recipe_id=request.recipe_id,
+        recipe_title=request.recipe_title,
+        recipe_image=request.recipe_image,
+        ingredients=request.ingredients_json,
+        instructions="Instructions unavailable"
+    )
+    db.add(new_plan)
+    db.commit()
+    db.refresh(new_plan)
+
+    # Envanter ile Karşılaştır ve Eksikleri Frontend'e Gönder (Otomatik listeye atma)
+    available_items, missing_items = compare_recipe_with_inventory(new_plan, db_user, db)
+
+    return {
+        "status": "success", 
+        "message": f"✅ {request.day} {request.meal_type} added to the plan",
+        "meal_plan_id": new_plan.id,
+        "missing_items": missing_items,
+        "available_items": available_items
+    }
+
+
+
 @router.post("/meal-plan/check-ingredients")
 def check_meal_plan_ingredients(request: MealPlanItemRequest, db: Session = Depends(get_db)):
-
     db_user = db.query(models.User).filter(models.User.email == request.email).first()
 
     if not db_user:
-        return {
-            "status": "error",
-            "message": "User not found."
-        }
+        return {"status": "error", "message": "User not found."}
 
     meal_plan_item = db.query(models.MealPlan).filter(
         models.MealPlan.id == request.meal_plan_id,
@@ -153,16 +179,9 @@ def check_meal_plan_ingredients(request: MealPlanItemRequest, db: Session = Depe
     ).first()
 
     if not meal_plan_item:
-        return {
-            "status": "error",
-            "message": "Meal plan item not found."
-        }
+        return {"status": "error", "message": "Meal plan item not found."}
 
-    available_items, missing_items = compare_recipe_with_inventory(
-        meal_plan_item,
-        db_user,
-        db
-    )
+    available_items, missing_items = compare_recipe_with_inventory(meal_plan_item, db_user, db)
 
     return {
         "status": "success",
@@ -171,17 +190,12 @@ def check_meal_plan_ingredients(request: MealPlanItemRequest, db: Session = Depe
         "missing_items": missing_items
     }
 
-# Meal plan retrieval endpoint - This will be called when Streamlit loads to display the current meal plan for the user.
 @router.get("/meal-plan/{email}")
 def get_meal_plan(email: str, db: Session = Depends(get_db)):
-
     db_user = db.query(models.User).filter(models.User.email == email).first()
 
     if not db_user:
-        return {
-            "status": "error",
-            "message": "User not found."
-        }
+        return {"status": "error", "message": "User not found."}
 
     meal_plan_items = db.query(models.MealPlan).filter(
         models.MealPlan.user_email == email
@@ -204,35 +218,4 @@ def get_meal_plan(email: str, db: Session = Depends(get_db)):
             }
             for item in meal_plan_items
         ]
-    }
-
-    db_user = db.query(models.User).filter(models.User.email == email).first()
-
-    if not db_user:
-        return {
-            "status": "error",
-            "message": "User not found."
-        }
-
-    meal_plan_items = db.query(models.MealPlan).filter(
-        models.MealPlan.user_email == email
-    ).order_by(models.MealPlan.id).all()
-
-    return {
-        "status": "success",
-        "meal_plan": [
-            {
-                "id": item.id,
-                "plan_day": item.plan_day,
-                "recipe_id": item.recipe_id,
-                "recipe_title": item.recipe_title,
-                "recipe_image": item.recipe_image,
-                "source_url": item.source_url,
-                "ready_in_minutes": item.ready_in_minutes,
-                "servings": item.servings,
-                "ingredients": item.ingredients
-            }
-            for item in meal_plan_items
-        ]
-        
     }

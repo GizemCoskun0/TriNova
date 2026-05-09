@@ -91,3 +91,15 @@ class ShoppingListItem(Base):
     is_checked = Column(Boolean, default=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)    
+
+class FavoriteRecipe(Base):
+    __tablename__ = "favorite_recipes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_email = Column(String, index=True)
+    recipe_id = Column(Integer)
+    recipe_title = Column(String, nullable=False)
+    recipe_image = Column(String)
+    source_url = Column(String)
+    ingredients = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)    

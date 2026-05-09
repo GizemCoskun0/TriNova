@@ -10,7 +10,7 @@ from database import get_db
 from pydantic import BaseModel
 
 from schemas import ProfileCreate, InventoryItem, MealPlanGenerateRequest, MealPlanItemRequest
-from routers import recipes,inventory,profile,shopping_list,meal_plan
+from routers import recipes,inventory,profile,shopping_list,meal_plan,favorites
 
 import models
 import json
@@ -32,6 +32,7 @@ app.include_router(inventory.router)
 app.include_router(profile.router)
 app.include_router(shopping_list.router)
 app.include_router(meal_plan.router)
+app.include_router(favorites.router)
 
 @app.get("/")
 def read_root():
@@ -47,3 +48,4 @@ def analyze_image(file: UploadFile = File(...)):
         return {"status": "success", "detected_items": detected_items}
     except Exception as e:
         return {"status": "error", "message": f"AI Analiz Hatası: {str(e)}"}
+    
