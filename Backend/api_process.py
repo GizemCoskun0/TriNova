@@ -6,62 +6,79 @@ from dotenv import load_dotenv
 # Load environment variables from the .env file
 load_dotenv()
 
-# Get the API Key securely
 API_KEY = os.getenv("SPOONACULAR_API_KEY")
 BASE_URL = "https://api.spoonacular.com/recipes"
 
 class AsyncRecipeAPI:
-    """Class to handle asynchronous (non-blocking) communication with the Spoonacular API."""
-
+    
+    # 1. YETENEK: SMART INVENTORY İÇİN (Malzemeli + Filtreli)
+# 1. YETENEK: SMART INVENTORY İÇİN (Malzemeli + Filtreli)
     @staticmethod
-    async def search_by_ingredients(ingredients_list):
-        """Searches for recipes based on the provided ingredients list."""
-        
+    async def search_by_ingredients(ingredients_list, diets=None, allergies=None, number=5):
         ingredients_str = ",".join(ingredients_list)
+        endpoint = f"{BASE_URL}/complexSearch"
         
-        # The exact endpoint for finding recipes by ingredients
-        endpoint = f"{BASE_URL}/findByIngredients"
-        
-        # Parameters to send to the API
         params = {
-            "ingredients": ingredients_str,
-            "number": 15, # Fetch the top 15 recipes 
+            "includeIngredients": ingredients_str,
+            "number": 15, # 🚀 BİLEREK FAZLA ÇEKİYORUZ (İçinden en iyileri seçeceğiz)
+            "sort": "min-missing-ingredients", # 🚀 HEDEF: Markete en az gönderen tarif
+            "ignorePantry": "true", # 🚀 Tuz, yağ, su gibi temel malzemeleri eksik sayma!
+            "instructionsRequired": "true",
+            "addRecipeInformation": "true",
+            "fillIngredients": "true",
             "apiKey": API_KEY
         }
 
-        # Make an asynchronous HTTP request using aiohttp
+        if diets: 
+            params["diet"] = ",".join(diets)
+        if allergies: 
+            params["intolerances"] = ",".join(allergies)
+
         async with aiohttp.ClientSession() as session:
             try:
-                # Await the response without blocking the main thread
                 async with session.get(endpoint, params=params) as response:
                     if response.status == 200:
                         data = await response.json()
-                        return data
-                    else:
-                        error_text = await response.text()
-                        print(f"API Error! Status Code: {response.status}")
-                        print("API Error Response:", error_text)
-                        return None
+                        results = data.get("results", [])
+                        
+                        # 🚀 PYTHON İLE ZEKİ SIRALAMA: 
+                        # Eksik malzeme sayısı (missedIngredientCount) EN AZ olanları en üste al
+                        sorted_results = sorted(results, key=lambda x: x.get("missedIngredientCount", 99))
+                        
+                        # Sadece en eksiksiz olan "number" (5) kadarını döndür
+                        return sorted_results[:number] 
+                        
+                    return None
             except Exception as e:
                 print(f"Connection error occurred: {e}")
                 return None
 
-# A small runtime block for testing asynchronous code
-async def main():
-    print("Sending ingredients to the API...")
-    
-    my_ingredients = ["tomato", "cheese", "garlic"] 
-    
-    recipes = await AsyncRecipeAPI.search_by_ingredients(my_ingredients)
-    
-    if recipes:
-        print("\n--- FOUND RECIPES ---")
-        for recipe in recipes:
-            print(f"🍲 {recipe['title']} (Missing Ingredients: {recipe['missedIngredientCount']})")
-        print("------------------------\n")
-    else:
-        print("No recipes found or API key is invalid.")
+    # 2. YETENEK: MEAL PLANNER İÇİN (Rastgele + Filtreli)
+    @staticmethod
+    async def get_random_meal_plan(diets=None, allergies=None, number=9):
+        endpoint = f"{BASE_URL}/complexSearch"
+        
+        params = {
+            "sort": "random", # 🚀 Her seferinde farklı tarifler gelmesini sağlayan satır
+            "number": number, # 🚀 Eksik olan tarif sayısı limiti
+            "instructionsRequired": "true",
+            "addRecipeInformation": "true",
+            "fillIngredients": "true",
+            "apiKey": API_KEY
+        }
 
-if __name__ == "__main__":
+        if diets: 
+            params["diet"] = ",".join(diets)
+        if allergies: 
+            params["intolerances"] = ",".join(allergies)
 
-    asyncio.run(main())
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(endpoint, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return data.get("results", [])
+                    return None
+            except Exception as e:
+                print(f"Connection error occurred: {e}")
+                return None

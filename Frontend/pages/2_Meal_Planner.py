@@ -30,12 +30,13 @@ def get_user_favorite_ids():
         if res.status_code == 200:
             data = res.json()
             if data.get("status") == "success":
-                return [f["recipe_id"] for f in data.get("data", [])]
-            
+                # recipe_id'leri garanti olsun diye integer'a çeviriyoruz
+                return [int(f["recipe_id"]) for f in data.get("data", [])]
     except:
         pass
     return []
 
+# Her rerun olduğunda listeyi tazeler
 user_favorites = get_user_favorite_ids()
 
 def clean_html(text):
@@ -160,21 +161,97 @@ else:
     st.caption("Allergies: None")
 
 st.divider()
-
+# --- Bölüm: Tarif Önerileri ---
 st.subheader("⚙️ Meal Plan Actions")
 
+if st.button("🔄 Suggest 10 New Recipes", use_container_width=True):
+    with st.spinner("Fetching personalized suggestions..."):
+        # Backend'deki generate endpoint'ine istek atıyoruz
+        response = requests.post(API_GENERATE_PLAN, json={"username": USERNAME, "email": EMAIL, "days": 3})
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success":
+                # Gelen 10 tarifi session_state'e kaydediyoruz ki sayfada kalsınlar
+                st.session_state.candidate_recipes = data.get("data")
+                st.success("✅ 10 new suggestions loaded below!")
+            else:
+                st.error(data.get("message", "Failed to fetch suggestions."))
+
+st.divider()
+
+# --- Aday Tariflerin Listelenmesi ---
+if "candidate_recipes" in st.session_state:
+    st.subheader("💡 Suggested Recipes (Add to Your Plan)")
+    
+    # Döngü burada başlıyor
+    for recipe in st.session_state.candidate_recipes:
+        with st.expander(f"🍲 {recipe['title']}"):
+            col_img, col_info = st.columns([1, 2])
+            
+            with col_img:
+                st.image(recipe['image'], use_container_width=True)
+                
+            with col_info:
+                # Seçim kutuları
+                target_day = st.selectbox("Select Day", ["Day 1", "Day 2", "Day 3"], key=f"day_{recipe['id']}")
+                target_meal = st.selectbox("Select Meal", ["Breakfast", "Lunch", "Dinner"], key=f"meal_{recipe['id']}")
+                
+                btn_col1, btn_col2 = st.columns(2)
+                
+                with btn_col1:
+                    if st.button(f"➕ Add to Plan", key=f"add_{recipe['id']}", use_container_width=True):
+                        add_payload = {
+                            "email": EMAIL,
+                            "day": target_day,
+                            "meal_type": target_meal,
+                            "recipe_id": recipe['id'],
+                            "recipe_title": recipe['title'],
+                            "recipe_image": recipe['image'],
+                            "ingredients_json": json.dumps({
+                                "ingredients": recipe.get("usedIngredients", []) + recipe.get("missedIngredients", [])
+                            })
+                        }
+                        res = requests.post("http://localhost:8000/api/meal-plan/add-single", json=add_payload)
+                        if res.status_code == 200:
+                            st.toast("✅ Added to Plan!")
+                            st.rerun()
+                
+                with btn_col2:
+                # 1. Kontrol: Bu tarif şu an favorilerde mi? 
+                    is_fav = recipe['id'] in user_favorites
+                    
+                    # 2. Senin istediğin dinamik metin ve ikon:
+                    # Başta "🤍 Add to Favorite", eklenince "❤️ In Favorite"
+                    button_label = "❤️ In Favorite" if is_fav else "🤍 Add to Favorite"
+                    
+                    # 3. Arkadaşının orijinal butonu (Sadece ismi 'button_label' yaptık)
+                    if st.button(button_label, key=f"fav_suggest_{recipe['id']}", use_container_width=True):
+                        fav_payload = {
+                            "email": EMAIL,
+                            "recipe_id": recipe['id'],
+                            "recipe_title": recipe['title'],
+                            "recipe_image": recipe['image']
+                        }
+                        
+                        # Arkadaşının orijinal API adresi ve isteği (Hiçbir şey değişmedi)
+                        res = requests.post(API_FAVORITES, json=fav_payload)
+                        
+                        if res.status_code == 200:
+                            st.toast("⭐ Favorites updated!")
+                            # Kalbin kırmızıya dönmesi ve yazının değişmesi için sayfayı tazeler
+                            st.rerun()
+
+
+# Döngü bitti, sayfanın geri kalanı
+st.divider()
+st.subheader("⚙️ Meal Plan Actions")
 if meal_plan:
     st.warning("You already have a meal plan. Regenerating will replace the current plan.")
     button_label = "🔄 Regenerate Meal Plan"
 else:
     button_label = "✨ Generate Meal Plan"
 
-if st.button(button_label, use_container_width=True):
-    payload = {
-        "username": USERNAME,
-        "email": EMAIL,
-        "days": 3
-    }
+
 
     with st.spinner("Generating your personalized meal plan..."):
         try:

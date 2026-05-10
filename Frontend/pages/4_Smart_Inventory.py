@@ -193,8 +193,7 @@ with col2:
                 st.rerun()
 
 st.divider()
-
-# --- 1. SADECE API İSTEĞİNİ YAPAN BUTON ---
+# --- SADECE API İSTEĞİNİ YAPAN BUTON ---
 if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True):
     inventory_items = fetch_inventory()
     
@@ -208,7 +207,13 @@ if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True
             
             try:
                 RECIPES_API_URL = "http://localhost:8000/api/recipes"
-                response = requests.get(RECIPES_API_URL, params={"ingredients": ingredients_str})
+                aktif_kullanici = st.session_state.get("username")
+
+                response = requests.get(RECIPES_API_URL, params={
+                "ingredients": ingredients_str, 
+                "username": aktif_kullanici,
+                "number": 5   # <-- Smart Inventory için tam 5 tarif istiyoruz
+                    })
                 
                 if response.status_code == 200:
                     data = response.json()
@@ -223,6 +228,7 @@ if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True
                 st.error(f"Connection error: {e}")
 
 # --- 2. TARİFLERİ SESSION STATE'TEN OKUYUP ÇİZEN KISIM ---
+# --- 2. TARİFLERİ SESSION STATE'TEN OKUYUP ÇİZEN KISIM ---
 if st.session_state.show_recipes:
     recipes = st.session_state.fetched_recipes
     
@@ -236,11 +242,15 @@ if st.session_state.show_recipes:
                 with col_img:
                     st.image(recipe['image'], use_container_width=True)
 
+                    # --- SENİN İSTEDİĞİN DİNAMİK FAVORİ BUTONU ---
+                    # 1. Kontrol: Bu tarif şu an favorilerde mi? (ID eşleşmesi için int kullanıyoruz)
+                    is_fav = int(recipe['id']) in user_favorites
+                    
+                    # 2. Buton Yazısı: Favorideyse kırmızı, değilse beyaz kalp
+                    button_label = "❤️ In Favorite" if is_fav else "🤍 Add to Favorite"
 
-                    is_fav = recipe['id'] in user_favorites
-                    heart_icon = "❤️ Favorilerde" if is_fav else "🤍 Favorilere Ekle"
-
-                    if st.button(heart_icon, key=f"fav_btn_{recipe['id']}"):
+                    # 3. Buton ve İstek
+                    if st.button(button_label, key=f"fav_btn_{recipe['id']}", use_container_width=True):
                         all_ingredients = recipe.get("usedIngredients", []) + recipe.get("missedIngredients", [])
                         ingredients_data = {"ingredients": all_ingredients}
                         
@@ -252,8 +262,11 @@ if st.session_state.show_recipes:
                             "source_url": recipe.get('sourceUrl', ''),
                             "ingredients_json": json.dumps(ingredients_data) 
                         }
+                        
+                        # Arkadaşının orijinal toggle/add API mantığı
                         res = requests.post(API_FAVORITES, json=payload)
                         if res.status_code == 200:
+                            # Sayfayı yenile ki kalp kırmızıya dönsün
                             st.rerun() 
                             
                 with col_info:
@@ -265,44 +278,11 @@ if st.session_state.show_recipes:
                         st.warning(f"*(You still need: {', '.join(missed)})*")
                         
                     st.divider()
-                    st.write("📅 **Add to Plan**")
-
-                col_day, col_meal = st.columns(2)
-
-                with col_day:
-                    selected_day = st.selectbox("Day", ["Day 1", "Day 2", "Day 3"], key=f"day_{recipe['id']}")
-                with col_meal:
-                    selected_meal = st.selectbox("Meal", ["Breakfast", "Lunch", "Dinner"], key=f"meal_{recipe['id']}")
-    
+                    
+                
                 plan_state_key = f"inv_plan_info_{recipe['id']}"
 
-                if st.button("➕ Add to Plan", key=f"add_plan_{recipe['id']}", use_container_width=True):
-                                                                
-                    all_ingredients = recipe.get("usedIngredients", []) + recipe.get("missedIngredients", [])
-                    ingredients_data = {"ingredients": all_ingredients}
-                    
-                    payload = {
-                        "email": EMAIL,
-                        "recipe_id": recipe['id'],
-                        "recipe_title": recipe['title'],
-                        "recipe_image": recipe['image'],
-                        "day": selected_day,
-                        "meal_type": selected_meal,
-                        "ingredients_json": json.dumps(ingredients_data)
-                    }
-                    
-                    with st.spinner("Checking kitchen inventory..."):
-                        res = requests.post(API_ADD_SINGLE, json=payload)
-                        
-                        if res.status_code == 200:
-                            data = res.json()
-                            st.session_state[plan_state_key] = {
-                                "meal_plan_id": data.get("meal_plan_id"),
-                                "missing_items": data.get("missing_items", [])
-                            }
-                            st.success(data.get("message"))
-                        else:
-                            st.error("Failed to communicate with the backend!")
+
 
                 if plan_state_key in st.session_state:
                     missing_items = st.session_state[plan_state_key]["missing_items"]

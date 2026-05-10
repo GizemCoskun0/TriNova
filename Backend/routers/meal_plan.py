@@ -14,110 +14,38 @@ router = APIRouter(
     tags=["Meal Plan"]
 )
 
-# Meal plan generation endpoint
 @router.post("/meal-plan/generate")
 async def generate_meal_plan(request: MealPlanGenerateRequest, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == request.email).first()
-
     if not db_user:
-        return {"status": "error", "message": "User not found. Please login or create a profile first."}
+        return {"status": "error", "message": "User not found."}
 
-    user_allergies = [allergy.name for allergy in db_user.allergies]
-    user_diets = [diet.name for diet in db_user.diets]
+    # Çeviri sözlüğü (Diyet ve Alerjiler için)
+    CEVIRI = {
+        "vejetaryen": "vegetarian", "vegan": "vegan", "glütensiz": "gluten free",
+        "ketojenik": "ketogenic", "yumurta": "egg", "süt": "dairy",
+        "fıstık": "peanut", "yer fıstığı": "peanut", "deniz ürünleri": "seafood",
+        "soya": "soy", "buğday": "wheat"
+    }
+    
+    user_allergies = [CEVIRI.get(a.name.lower(), a.name.lower()) for a in db_user.allergies]
+    user_diets = [CEVIRI.get(d.name.lower(), d.name.lower()) for d in db_user.diets]
 
-    inventory_items = db.query(models.Inventory).filter(
-        models.Inventory.user_id == db_user.id
-    ).all()
-
-    ingredients_list = [item.name for item in inventory_items]
-
-    if not ingredients_list:
-        ingredients_list = ["tomato", "cheese", "garlic", "egg", "rice", "chicken"]
-
-    recipes = await AsyncRecipeAPI.search_by_ingredients(ingredients_list)
+    # Tercihlere göre rastgele 10 aday tarif çekiyoruz
+    recipes = await AsyncRecipeAPI.get_random_meal_plan(
+        diets=user_diets,
+        allergies=user_allergies,
+        number=10
+    )
 
     if not recipes:
-        return {"status": "error", "message": "No recipes found from the API."}
+        return {"status": "error", "message": "No suitable recipes found."}
 
-    suitable_recipes = []
-    for recipe in recipes:
-        if recipe_matches_user_preferences(recipe, user_allergies, user_diets):
-            suitable_recipes.append(recipe)
-
-    if not suitable_recipes:
-        return {"status": "error", "message": "No suitable recipes found for your diet and allergies."}
-
-    meal_types = ["Breakfast", "Lunch", "Dinner"]
-    total_needed = request.days * len(meal_types)
-
-    if len(suitable_recipes) < total_needed:
-        return {"status": "error", "message": f"Not enough suitable recipes found. Needed {total_needed}, but found {len(suitable_recipes)}."}
-
-    # Eski planı siliyoruz, yeni 3 günlük planı kaydedeceğiz
-    db.query(models.MealPlan).filter(models.MealPlan.user_email == request.email).delete()
-
-    saved_plan = []
-    recipe_index = 0
-
-    for day_index in range(request.days):
-        plan_day = f"Day {day_index + 1}"
-
-        for meal_type in meal_types:
-            recipe = suitable_recipes[recipe_index]
-            recipe_index += 1
-
-            ingredients_data = {
-                "ingredients": [
-                    {
-                        "name": ingredient.get("name"),
-                        "amount": ingredient.get("amount", 1),
-                        "unit": ingredient.get("unit", "unit")
-                    }
-                    for ingredient in recipe.get("missedIngredients", []) + recipe.get("usedIngredients", [])
-                ]
-            }
-
-            new_plan_item = models.MealPlan(
-                user_id=db_user.id,
-                user_email=db_user.email,
-                plan_day=plan_day,
-                meal_type=meal_type,
-                recipe_id=recipe.get("id"),
-                recipe_title=recipe.get("title", "Unknown Recipe"),
-                recipe_image=recipe.get("image"),
-                source_url=recipe.get("sourceUrl"),
-                ready_in_minutes=recipe.get("readyInMinutes"),
-                servings=recipe.get("servings"),
-                ingredients=json.dumps(ingredients_data),
-                instructions=recipe.get("instructions", "Instructions will be available soon.")
-            )
-
-            db.add(new_plan_item)
-            saved_plan.append(new_plan_item)
-
-    db.commit()
-
+    # 🚨 DİKKAT: Veritabanına kayıt yapmıyoruz, sadece listeyi döndürüyoruz.
     return {
         "status": "success",
-        "message": "3-day meal plan generated successfully.",
-        "meal_plan": [
-            {
-                "id": item.id,
-                "plan_day": item.plan_day,
-                "meal_type": item.meal_type,
-                "recipe_id": item.recipe_id,
-                "recipe_title": item.recipe_title,
-                "recipe_image": item.recipe_image,
-                "source_url": item.source_url,
-                "ready_in_minutes": item.ready_in_minutes,
-                "servings": item.servings,
-                "ingredients": item.ingredients,
-                "instructions": item.instructions
-            }
-            for item in saved_plan
-        ]
+        "data": recipes 
     }
-
 
 #------------------- Tek öğün ekleme endpoint'i ------------------
 @router.post("/meal-plan/add-single")
