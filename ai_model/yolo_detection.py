@@ -14,7 +14,7 @@ model_path = os.path.join(BASE_DIR, 'weights.pt')
 _model = None
 
 def get_model():
-    """Modeli sadece ilk çağrıldığında yükler, sonra hafızada tutar."""
+    
     global _model
     if _model is None:
         if not os.path.exists(model_path):
@@ -23,10 +23,7 @@ def get_model():
     return _model
 
 def analyze_image_from_bytes(image_bytes):
-    """
-    FastAPI'den gelen (kullanıcının arayüzden yüklediği) fotograf bytelarını okur, 
-    YOLO modeline sokar ve bulunan malzemelerin listesini döndürür.
-    """
+
     
     nparr = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -44,3 +41,4 @@ def analyze_image_from_bytes(image_bytes):
             found_ingredients.add(class_name)
             
     return list(found_ingredients)
+#python -m uvicorn main:app --reload
