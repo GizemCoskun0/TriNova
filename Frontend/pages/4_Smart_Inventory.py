@@ -228,7 +228,6 @@ if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True
                 st.error(f"Connection error: {e}")
 
 # --- 2. TARİFLERİ SESSION STATE'TEN OKUYUP ÇİZEN KISIM ---
-# --- 2. TARİFLERİ SESSION STATE'TEN OKUYUP ÇİZEN KISIM ---
 if st.session_state.show_recipes:
     recipes = st.session_state.fetched_recipes
     
@@ -243,13 +242,9 @@ if st.session_state.show_recipes:
                     st.image(recipe['image'], use_container_width=True)
 
                     # --- SENİN İSTEDİĞİN DİNAMİK FAVORİ BUTONU ---
-                    # 1. Kontrol: Bu tarif şu an favorilerde mi? (ID eşleşmesi için int kullanıyoruz)
                     is_fav = int(recipe['id']) in user_favorites
-                    
-                    # 2. Buton Yazısı: Favorideyse kırmızı, değilse beyaz kalp
                     button_label = "❤️ In Favorite" if is_fav else "🤍 Add to Favorite"
 
-                    # 3. Buton ve İstek
                     if st.button(button_label, key=f"fav_btn_{recipe['id']}", use_container_width=True):
                         all_ingredients = recipe.get("usedIngredients", []) + recipe.get("missedIngredients", [])
                         ingredients_data = {"ingredients": all_ingredients}
@@ -263,10 +258,8 @@ if st.session_state.show_recipes:
                             "ingredients_json": json.dumps(ingredients_data) 
                         }
                         
-                        # Arkadaşının orijinal toggle/add API mantığı
                         res = requests.post(API_FAVORITES, json=payload)
                         if res.status_code == 200:
-                            # Sayfayı yenile ki kalp kırmızıya dönsün
                             st.rerun() 
                             
                 with col_info:
@@ -279,10 +272,30 @@ if st.session_state.show_recipes:
                         
                     st.divider()
                     
-                
+                 
+
+                    raw_instr = recipe.get("instructions")
+
+                    # Eğer ana alan boşsa, Spoonacular'ın yedek kulübesine (analyzedInstructions) bakıyoruz
+                    if not raw_instr or raw_instr == "":
+                        analyzed = recipe.get("analyzedInstructions", [])
+                        if analyzed and len(analyzed) > 0:
+                            steps = analyzed[0].get("steps", [])
+                            # Adımları 1. 2. 3. diye alt alta diziyoruz
+                            raw_instr = "\n".join([f"{s['number']}. {s['step']}" for s in steps])
+
+                    # Şimdi ekrana basma kısmına geçiyoruz (Senin orijinal yapın)
+                    if raw_instr:
+                        with st.expander("👨‍🍳 How to Cook (Instructions)"):
+                            # Artık içi dolu olan 'raw_instr' değişkenini kullanıyoruz
+                            st.write(raw_instr, unsafe_allow_html=True)
+                    else:
+                        st.info("💡 Instructions are not provided for this recipe by the source.")
+
+                   
+                    st.divider()
+                    
                 plan_state_key = f"inv_plan_info_{recipe['id']}"
-
-
 
                 if plan_state_key in st.session_state:
                     missing_items = st.session_state[plan_state_key]["missing_items"]

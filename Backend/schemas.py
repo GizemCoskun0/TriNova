@@ -44,3 +44,15 @@ class SingleMealAddRequest(BaseModel):
     # 🚀 YENİ EKLENEN KISIM: Dakika ve Porsiyon yuvaları hazır!
     ready_in_minutes: int | None = None
     servings: int | None = None
+
+class SingleMealAddRequest(BaseModel):
+    email: str           # 🚀 İŞTE EKSİK OLAN VE HATAYA SEBEP OLAN SATIR BU!
+    recipe_id: int
+    recipe_title: str
+    recipe_image: str | None = None
+    day: str
+    meal_type: str
+    ingredients_json: str
+    ready_in_minutes: int | None = None
+    servings: int | None = None
+    instructions: str | None = None

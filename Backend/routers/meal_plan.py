@@ -73,7 +73,7 @@ def add_single_meal_to_plan(request: SingleMealAddRequest, db: Session = Depends
     req_dict = request.dict(exclude_unset=True)
     ready_time = req_dict.get("ready_in_minutes", 45) # Yoksa 45 yaz
     serv = req_dict.get("servings", 4)                # Yoksa 4 yaz
-
+    inst = req_dict.get("instructions") or "No instructions available."
     new_plan = models.MealPlan(
         user_id=db_user.id,
         user_email=db_user.email,
@@ -83,7 +83,7 @@ def add_single_meal_to_plan(request: SingleMealAddRequest, db: Session = Depends
         recipe_title=request.recipe_title,
         recipe_image=request.recipe_image,
         ingredients=request.ingredients_json,
-        instructions="Instructions unavailable",
+        instructions=inst,
         # İŞTE AMELİYAT YAPTIĞIMIZ YER: Bu iki sütunu dolduruyoruz
         ready_in_minutes=ready_time,
         servings=serv
@@ -153,7 +153,9 @@ def get_meal_plan(email: str, db: Session = Depends(get_db)):
                 "source_url": item.source_url,
                 "ready_in_minutes": item.ready_in_minutes,
                 "servings": item.servings,
-                "ingredients": item.ingredients
+                "ingredients": item.ingredients,
+                "instructions": item.instructions
+                
             }
             for item in meal_plan_items
         ]

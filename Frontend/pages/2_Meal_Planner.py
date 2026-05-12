@@ -129,6 +129,8 @@ def fetch_inventory_count():
 
 
 meal_plan = fetch_meal_plan()
+if meal_plan:
+    meal_plan.sort(key=lambda x: int(x['plan_day'].split()[-1]) if x['plan_day'] and x['plan_day'].split()[-1].isdigit() else 0)
 current_diet, current_allergies = fetch_profile_summary()
 inventory_count = fetch_inventory_count()
 
@@ -200,6 +202,19 @@ if "candidate_recipes" in st.session_state:
                 
                 with btn_col1:
                     if st.button(f"➕ Add to Plan", key=f"add_{recipe['id']}", use_container_width=True):
+                        raw_instr = recipe.get("instructions")
+        
+                        # Eğer talimat yoksa veya boş metinse, analyzedInstructions kısmına bakıyoruz
+                        if not raw_instr or raw_instr == "":
+                            analyzed = recipe.get("analyzedInstructions", [])
+                            if analyzed and len(analyzed) > 0:
+                                steps = analyzed[0].get("steps", [])
+                                # Adımları 1. Step, 2. Step gibi alt alta birleştiriyoruz
+                                raw_instr = "\n".join([f"{s['number']}. {s['step']}" for s in steps])
+                        
+                        # Eğer hala boşsa senin orijinal "No instructions..." yazını yazıyoruz
+                        final_instr = raw_instr if raw_instr else "No instructions available."
+                        # --- 🚀 ENTEGRE EDİLEN KISIM BİTTİ ---
                         add_payload = {
                             "email": EMAIL,
                             "day": target_day,
@@ -209,11 +224,13 @@ if "candidate_recipes" in st.session_state:
                             "recipe_image": recipe['image'],
                             "ready_in_minutes": recipe.get("readyInMinutes") or recipe.get("ready_in_minutes") or 45,
                             "servings": recipe.get("servings") or 4,
-                            # ---------------------------------------------
+                            "instructions": final_instr, # 🚀 BUNU YENİ EKLEDİK
                             "ingredients_json": json.dumps({
                                 "ingredients": recipe.get("usedIngredients", []) + recipe.get("missedIngredients", [])
                             })
                         }
+                        
+              
                         res = requests.post("http://localhost:8000/api/meal-plan/add-single", json=add_payload)
                         if res.status_code == 200:
                             st.toast("✅ Added to Plan!")
@@ -255,7 +272,11 @@ if meal_plan:
 else:
     button_label = "✨ Generate Meal Plan"
 
-
+    payload = {
+        "username": USERNAME,
+        "email": EMAIL,
+        "days": 3
+    }
 
     with st.spinner("Generating your personalized meal plan..."):
         try:
