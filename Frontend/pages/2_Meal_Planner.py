@@ -207,6 +207,10 @@ if "candidate_recipes" in st.session_state:
                             "recipe_id": recipe['id'],
                             "recipe_title": recipe['title'],
                             "recipe_image": recipe['image'],
+                            # 🚀 İŞTE EKSİK OLAN VE BİZİ UĞRAŞTIRAN 2 SATIR:
+                            "ready_in_minutes": recipe.get("readyInMinutes") or recipe.get("ready_in_minutes") or 45,
+                            "servings": recipe.get("servings") or 4,
+                            # ---------------------------------------------
                             "ingredients_json": json.dumps({
                                 "ingredients": recipe.get("usedIngredients", []) + recipe.get("missedIngredients", [])
                             })
@@ -215,6 +219,7 @@ if "candidate_recipes" in st.session_state:
                         if res.status_code == 200:
                             st.toast("✅ Added to Plan!")
                             st.rerun()
+ 
                 
                 with btn_col2:
                 # 1. Kontrol: Bu tarif şu an favorilerde mi? 
@@ -342,10 +347,16 @@ for day in days:
                         st.toast("Error: Backend could not be reached..")
                 # -----------------------------
 
-                ready_time = item.get("ready_in_minutes", "N/A")
-                servings = item.get("servings", "N/A")
+                # --- DÜZELTİLEN KISIM: Dakika ve Porsiyon ---
+                # Hem veritabanı formatını (ready_in_minutes) hem de Spoonacular formatını (readyInMinutes) yakalar.
+                # Eğer Backend'den boş (None) gelirse, ekranda çirkin bir "None" yazması yerine "N/A" veya varsayılan değer yazar.
+                
+                ready_time = item.get("ready_in_minutes") or item.get("readyInMinutes") or "45"
+                servings = item.get("servings") or "4"
 
                 st.caption(f"⏱️ {ready_time} min | 🍽️ {servings} servings")
+                # ---------------------------------------------
+ 
 
                 with st.expander("View Details"):
                     st.markdown("#### 🧂 Ingredients")

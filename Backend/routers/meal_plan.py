@@ -66,6 +66,14 @@ def add_single_meal_to_plan(request: SingleMealAddRequest, db: Session = Depends
         db.delete(existing_meal)
         db.commit()
 
+    # --- YENİ EKLENEN KISIM BAŞLIYOR ---
+    # Frontend'den o dakika ve porsiyonları alabilmemiz lazım ama 
+    # şu an SingleMealAddRequest içinde o alanlar olmayabilir.
+    # Güvenli yoldan alıyoruz: Eğer request'in içinde gönderildiyse al, gönderilmediyse varsayılan yaz.
+    req_dict = request.dict(exclude_unset=True)
+    ready_time = req_dict.get("ready_in_minutes", 45) # Yoksa 45 yaz
+    serv = req_dict.get("servings", 4)                # Yoksa 4 yaz
+
     new_plan = models.MealPlan(
         user_id=db_user.id,
         user_email=db_user.email,
@@ -75,8 +83,13 @@ def add_single_meal_to_plan(request: SingleMealAddRequest, db: Session = Depends
         recipe_title=request.recipe_title,
         recipe_image=request.recipe_image,
         ingredients=request.ingredients_json,
-        instructions="Instructions unavailable"
+        instructions="Instructions unavailable",
+        # İŞTE AMELİYAT YAPTIĞIMIZ YER: Bu iki sütunu dolduruyoruz
+        ready_in_minutes=ready_time,
+        servings=serv
     )
+    # --- YENİ EKLENEN KISIM BİTTİ ---
+
     db.add(new_plan)
     db.commit()
     db.refresh(new_plan)
@@ -91,8 +104,6 @@ def add_single_meal_to_plan(request: SingleMealAddRequest, db: Session = Depends
         "missing_items": missing_items,
         "available_items": available_items
     }
-
-
 
 @router.post("/meal-plan/check-ingredients")
 def check_meal_plan_ingredients(request: MealPlanItemRequest, db: Session = Depends(get_db)):
