@@ -1,10 +1,11 @@
 import streamlit as st
-from home_styles import load_landing_css
+from home_styles import load_landing_css, hide_sidebar
 
 
 def show_landing_page():
     try:
         load_landing_css()
+        hide_sidebar()
     except Exception:
         pass
 
@@ -139,7 +140,6 @@ def show_landing_page():
         unsafe_allow_html=True,
     )
 
-    # TOP BAR
     top_col1, top_col2 = st.columns([5, 1.4])
 
     with top_col1:
@@ -158,7 +158,6 @@ def show_landing_page():
             st.session_state.auth_view = "login"
             st.rerun()
 
-    # HERO SECTION
     st.markdown(
         """
         <div class="giant-hero">
@@ -178,7 +177,6 @@ def show_landing_page():
         unsafe_allow_html=True,
     )
 
-    # CORE FEATURES
     st.markdown(
         '<div class="section-header">CORE FEATURES</div>',
         unsafe_allow_html=True,
@@ -240,7 +238,6 @@ def show_landing_page():
             unsafe_allow_html=True,
         )
 
-    # FOOTER
     st.markdown(
         """
         <div class="footer-box">

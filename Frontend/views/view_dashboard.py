@@ -3,6 +3,7 @@ from auth_utils import clear_login_cookie
 from user_db import get_dashboard_data
 from home_styles import load_home_css
 
+
 def logout():
     st.session_state.manual_logout = True
     st.session_state.auth_view = "landing"
@@ -19,8 +20,8 @@ def logout():
 
 
 def show_home_page():
-    # FontAwesome CDN ve Gelişmiş Hover/Gölge CSS'leri
-    st.markdown("""
+    st.markdown(
+        """
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
             .dashboard-card {
@@ -74,9 +75,10 @@ def show_home_page():
                 font-size: 15px;
             }
         </style>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
-    # Eski CSS dosyan varsa o da yüklenmeye devam etsin
     try:
         load_home_css()
     except Exception:
@@ -88,15 +90,14 @@ def show_home_page():
         st.error("Dashboard data could not be loaded.")
         return
 
-    # Güvenli veri çekme (.get() kullanımı - Backend çökmesini önler)
     inventory_count = dashboard_data.get("inventory_count", 0)
     shopping_count = dashboard_data.get("shopping_count", 0)
     meal_plan_count = dashboard_data.get("meal_plan_count", 0)
     diet = dashboard_data.get("diet", "Not specified")
     allergy_count = dashboard_data.get("allergy_count", 0)
 
-    # Gradient Arka Planlı Hero Box
-    st.markdown(f"""
+    st.markdown(
+        f"""
         <div style="background: linear-gradient(135deg, #ff4b4b 0%, #ff7676 100%); 
                     border-radius: 15px; 
                     padding: 30px; 
@@ -108,14 +109,19 @@ def show_home_page():
                 Here is your kitchen overview for today. Let's cook something delicious!
             </p>
         </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
-    st.markdown('<h3 style="color: #31333F;">🏠 Kitchen Dashboard</h3>', unsafe_allow_html=True)
+    st.markdown(
+        '<h3 style="color: #31333F;">🏠 Kitchen Dashboard</h3>', unsafe_allow_html=True
+    )
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.markdown(f"""
+        st.markdown(
+            f"""
             <div class="dashboard-card">
                 <div class="dashboard-icon" style="color: #FF9800; font-size: 28px;">
                     <i class="fa-solid fa-utensils"></i>
@@ -124,13 +130,18 @@ def show_home_page():
                 <div class="dashboard-value" style="color: #FF9800;">{meal_plan_count}</div>
                 <div class="step-text">saved meal items</div>
             </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col2:
         # Envanter için basit bir doluluk barı (örneğin mutfakta ortalama 20 malzeme olsun)
-        inventory_percentage = min((inventory_count / 20) * 100, 100) if inventory_count else 0
-        
-        st.markdown(f"""
+        inventory_percentage = (
+            min((inventory_count / 20) * 100, 100) if inventory_count else 0
+        )
+
+        st.markdown(
+            f"""
             <div class="dashboard-card">
                 <div class="dashboard-icon" style="color: #4CAF50; font-size: 28px;">
                     <i class="fa-solid fa-kitchen-set"></i>
@@ -142,10 +153,13 @@ def show_home_page():
                 </div>
                 <div class="step-text">ingredients at home</div>
             </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col3:
-        st.markdown(f"""
+        st.markdown(
+            f"""
             <div class="dashboard-card">
                 <div class="dashboard-icon" style="color: #2196F3; font-size: 28px;">
                     <i class="fa-solid fa-cart-shopping"></i>
@@ -154,14 +168,20 @@ def show_home_page():
                 <div class="dashboard-value" style="color: #2196F3;">{shopping_count}</div>
                 <div class="step-text">items to buy</div>
             </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
-    st.markdown('<h3 style="margin-top: 20px; color: #31333F;">📌 Profile Status</h3>', unsafe_allow_html=True)
+    st.markdown(
+        '<h3 style="margin-top: 20px; color: #31333F;">📌 Profile Status</h3>',
+        unsafe_allow_html=True,
+    )
 
     col4, col5 = st.columns(2)
 
     with col4:
-        st.markdown(f"""
+        st.markdown(
+            f"""
             <div class="dashboard-card">
                 <div class="dashboard-icon" style="color: #8BC34A; font-size: 28px;">
                     <i class="fa-solid fa-leaf"></i>
@@ -170,10 +190,13 @@ def show_home_page():
                 <div class="dashboard-value" style="font-size:22px; color: #333;">{diet}</div>
                 <div class="step-text">used for meal suggestions</div>
             </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col5:
-        st.markdown(f"""
+        st.markdown(
+            f"""
             <div class="dashboard-card">
                 <div class="dashboard-icon" style="color: #E91E63; font-size: 28px;">
                     <i class="fa-solid fa-triangle-exclamation"></i>
@@ -182,9 +205,12 @@ def show_home_page():
                 <div class="dashboard-value" style="color: #E91E63;">{allergy_count}</div>
                 <div class="step-text">saved allergy records</div>
             </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
-    st.markdown("""
+    st.markdown(
+        """
         <div class="smart-box">
             <div class="tip-title"><i class="fa-regular fa-lightbulb"></i> Smart Suggestion</div>
             <div class="tip-text">
@@ -192,7 +218,9 @@ def show_home_page():
                 This helps the system suggest better recipes and create a more accurate grocery list.
             </div>
         </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     st.divider()
 

@@ -3,25 +3,57 @@ from auth_utils import set_login_cookie, clear_login_cookie
 from user_db import register_user, check_login
 from home_styles import hide_sidebar
 
+
 def show_login_page():
     hide_sidebar()
+    st.markdown(
+        """
+        <style>
+            h1 {
+                font-size: 34px !important;
+            }
+
+            h3 {
+                font-size: 22px !important;
+            }
+
+            .stTabs [data-baseweb="tab"] {
+                font-size: 16px;
+                padding: 10px 18px;
+            }
+
+            .stTextInput label {
+                font-size: 15px !important;
+            }
+
+            .stButton button {
+                font-size: 15px;
+                border-radius: 10px;
+            }
+        </style>
+    """,
+        unsafe_allow_html=True,
+    )
 
     if st.button("← Back to Home"):
         st.session_state.auth_view = "landing"
         st.rerun()
 
-    st.title("🔐 Smart Kitchen Assistant")
-    st.write("Login or create an account to continue.")
+    left, center, right = st.columns([1.2, 2, 1.2])
 
-    tab1, tab2 = st.tabs(["Login", "Register"])
+    with center:
+        st.markdown("<h1>🔐 Smart Kitchen Assistant</h1>", unsafe_allow_html=True)
+        tab1, tab2 = st.tabs(["Login", "Register"])
 
     with tab1:
         st.subheader("Registered User Login")
 
         with st.form("login_form"):
             login_email = st.text_input("Email", key="login_email")
-            login_password = st.text_input("Password", type="password", key="login_password")
-            remember_me = st.checkbox("Remember me", value=True)
+            login_password = st.text_input(
+                "Password", type="password", key="login_password"
+            )
+            remember_me = True
 
             login_submitted = st.form_submit_button("Login", use_container_width=True)
 
@@ -38,10 +70,7 @@ def show_login_page():
                     st.session_state.email = user[2]
                     st.session_state.manual_logout = False
 
-                    if remember_me:
-                        set_login_cookie(user[2])
-                    else:
-                        clear_login_cookie()
+                    set_login_cookie(user[2])
 
                     st.success("Login successful! Loading...")
                     st.rerun()
@@ -54,13 +83,24 @@ def show_login_page():
         with st.form("register_form"):
             register_username = st.text_input("Username", key="register_username")
             register_email = st.text_input("Email", key="register_email")
-            register_password = st.text_input("Password", type="password", key="register_password")
-            confirm_password = st.text_input("Confirm Password", type="password", key="confirm_password")
+            register_password = st.text_input(
+                "Password", type="password", key="register_password"
+            )
+            confirm_password = st.text_input(
+                "Confirm Password", type="password", key="confirm_password"
+            )
 
-            register_submitted = st.form_submit_button("Register", use_container_width=True)
+            register_submitted = st.form_submit_button(
+                "Register", use_container_width=True
+            )
 
         if register_submitted:
-            if register_username == "" or register_email == "" or register_password == "" or confirm_password == "":
+            if (
+                register_username == ""
+                or register_email == ""
+                or register_password == ""
+                or confirm_password == ""
+            ):
                 st.warning("Please fill in all fields.")
             elif "@" not in register_email:
                 st.warning("Please enter a valid email address.")
@@ -69,7 +109,9 @@ def show_login_page():
             elif len(register_password) < 4:
                 st.warning("Password must be at least 4 characters.")
             else:
-                result = register_user(register_username, register_email, register_password)
+                result = register_user(
+                    register_username, register_email, register_password
+                )
 
                 if result:
                     st.success("Registration successful! You can now login.")
