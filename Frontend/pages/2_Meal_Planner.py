@@ -207,7 +207,6 @@ if "candidate_recipes" in st.session_state:
                             "recipe_id": recipe['id'],
                             "recipe_title": recipe['title'],
                             "recipe_image": recipe['image'],
-                            # 🚀 İŞTE EKSİK OLAN VE BİZİ UĞRAŞTIRAN 2 SATIR:
                             "ready_in_minutes": recipe.get("readyInMinutes") or recipe.get("ready_in_minutes") or 45,
                             "servings": recipe.get("servings") or 4,
                             # ---------------------------------------------
