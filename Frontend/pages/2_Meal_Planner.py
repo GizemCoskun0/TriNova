@@ -2,6 +2,12 @@ import streamlit as st
 import requests
 import json
 import re
+
+st.set_page_config(
+    page_title="Meal Planner",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 from auth_utils import require_login
 
 require_login()
@@ -18,11 +24,12 @@ API_CHECK_INGREDIENTS = "http://localhost:8000/api/meal-plan/check-ingredients"
 API_ADD_MISSING = "http://localhost:8000/api/shopping-list/add-missing"
 API_PROFILE = f"http://localhost:8000/api/profile/{USERNAME}"
 API_INVENTORY = f"http://localhost:8000/api/inventory/{USERNAME}"
-API_FAVORITES = "http://localhost:8000/api/favorites" # <--- EKSİK OLAN LİNK EKLENDİ
+API_FAVORITES = "http://localhost:8000/api/favorites"  # <--- EKSİK OLAN LİNK EKLENDİ
 
 # -------------------------------------------------
 # HELPER FUNCTIONS
 # -------------------------------------------------
+
 
 def get_user_favorite_ids():
     try:
@@ -36,8 +43,10 @@ def get_user_favorite_ids():
         pass
     return []
 
+
 # Her rerun olduğunda listeyi tazeler
 user_favorites = get_user_favorite_ids()
+
 
 def clean_html(text):
     if not text:
@@ -130,12 +139,20 @@ def fetch_inventory_count():
 
 meal_plan = fetch_meal_plan()
 if meal_plan:
-    meal_plan.sort(key=lambda x: int(x['plan_day'].split()[-1]) if x['plan_day'] and x['plan_day'].split()[-1].isdigit() else 0)
+    meal_plan.sort(
+        key=lambda x: (
+            int(x["plan_day"].split()[-1])
+            if x["plan_day"] and x["plan_day"].split()[-1].isdigit()
+            else 0
+        )
+    )
 current_diet, current_allergies = fetch_profile_summary()
 inventory_count = fetch_inventory_count()
 
 st.title("🍽️ My Meal Plan")
-st.write("Create and manage your personalized meal plan based on your diet, allergies, and home inventory.")
+st.write(
+    "Create and manage your personalized meal plan based on your diet, allergies, and home inventory."
+)
 
 st.divider()
 
@@ -169,7 +186,9 @@ st.subheader("⚙️ Meal Plan Actions")
 if st.button("🔄 Suggest 10 New Recipes", use_container_width=True):
     with st.spinner("Fetching personalized suggestions..."):
         # Backend'deki generate endpoint'ine istek atıyoruz
-        response = requests.post(API_GENERATE_PLAN, json={"username": USERNAME, "email": EMAIL, "days": 3})
+        response = requests.post(
+            API_GENERATE_PLAN, json={"username": USERNAME, "email": EMAIL, "days": 3}
+        )
         if response.status_code == 200:
             data = response.json()
             if data.get("status") == "success":
@@ -184,79 +203,104 @@ st.divider()
 # --- Aday Tariflerin Listelenmesi ---
 if "candidate_recipes" in st.session_state:
     st.subheader("💡 Suggested Recipes (Add to Your Plan)")
-    
+
     # Döngü burada başlıyor
     for recipe in st.session_state.candidate_recipes:
         with st.expander(f"🍲 {recipe['title']}"):
             col_img, col_info = st.columns([1, 2])
-            
+
             with col_img:
-                st.image(recipe['image'], use_container_width=True)
-                
+                st.image(recipe["image"], use_container_width=True)
+
             with col_info:
+
                 # Seçim kutuları
-                target_day = st.selectbox("Select Day", ["Day 1", "Day 2", "Day 3"], key=f"day_{recipe['id']}")
-                target_meal = st.selectbox("Select Meal", ["Breakfast", "Lunch", "Dinner"], key=f"meal_{recipe['id']}")
-                
+                target_day = st.selectbox(
+                    "Select Day", ["Day 1", "Day 2", "Day 3"], key=f"day_{recipe['id']}"
+                )
+                target_meal = st.selectbox(
+                    "Select Meal",
+                    ["Breakfast", "Lunch", "Dinner"],
+                    key=f"meal_{recipe['id']}",
+                )
+
                 btn_col1, btn_col2 = st.columns(2)
-                
+
                 with btn_col1:
-                    if st.button(f"➕ Add to Plan", key=f"add_{recipe['id']}", use_container_width=True):
+                    if st.button(
+                        f"➕ Add to Plan",
+                        key=f"add_{recipe['id']}",
+                        use_container_width=True,
+                    ):
                         raw_instr = recipe.get("instructions")
-        
+
                         # Eğer talimat yoksa veya boş metinse, analyzedInstructions kısmına bakıyoruz
                         if not raw_instr or raw_instr == "":
                             analyzed = recipe.get("analyzedInstructions", [])
                             if analyzed and len(analyzed) > 0:
                                 steps = analyzed[0].get("steps", [])
                                 # Adımları 1. Step, 2. Step gibi alt alta birleştiriyoruz
-                                raw_instr = "\n".join([f"{s['number']}. {s['step']}" for s in steps])
-                        
+                                raw_instr = "\n".join(
+                                    [f"{s['number']}. {s['step']}" for s in steps]
+                                )
+
                         # Eğer hala boşsa senin orijinal "No instructions..." yazını yazıyoruz
-                        final_instr = raw_instr if raw_instr else "No instructions available."
+                        final_instr = (
+                            raw_instr if raw_instr else "No instructions available."
+                        )
                         # --- 🚀 ENTEGRE EDİLEN KISIM BİTTİ ---
                         add_payload = {
                             "email": EMAIL,
                             "day": target_day,
                             "meal_type": target_meal,
-                            "recipe_id": recipe['id'],
-                            "recipe_title": recipe['title'],
-                            "recipe_image": recipe['image'],
-                            "ready_in_minutes": recipe.get("readyInMinutes") or recipe.get("ready_in_minutes") or 45,
+                            "recipe_id": recipe["id"],
+                            "recipe_title": recipe["title"],
+                            "recipe_image": recipe["image"],
+                            "ready_in_minutes": recipe.get("readyInMinutes")
+                            or recipe.get("ready_in_minutes")
+                            or 45,
                             "servings": recipe.get("servings") or 4,
-                            "instructions": final_instr, # 🚀 BUNU YENİ EKLEDİK
-                            "ingredients_json": json.dumps({
-                                "ingredients": recipe.get("usedIngredients", []) + recipe.get("missedIngredients", [])
-                            })
+                            "instructions": final_instr,  # 🚀 BUNU YENİ EKLEDİK
+                            "ingredients_json": json.dumps(
+                                {
+                                    "ingredients": recipe.get("usedIngredients", [])
+                                    + recipe.get("missedIngredients", [])
+                                }
+                            ),
                         }
-                        
-              
-                        res = requests.post("http://localhost:8000/api/meal-plan/add-single", json=add_payload)
+
+                        res = requests.post(
+                            "http://localhost:8000/api/meal-plan/add-single",
+                            json=add_payload,
+                        )
                         if res.status_code == 200:
                             st.toast("✅ Added to Plan!")
                             st.rerun()
- 
-                
+
                 with btn_col2:
-                # 1. Kontrol: Bu tarif şu an favorilerde mi? 
-                    is_fav = recipe['id'] in user_favorites
-                    
+                    # 1. Kontrol: Bu tarif şu an favorilerde mi?
+                    is_fav = recipe["id"] in user_favorites
+
                     # 2. Senin istediğin dinamik metin ve ikon:
                     # Başta "🤍 Add to Favorite", eklenince "❤️ In Favorite"
                     button_label = "❤️ In Favorite" if is_fav else "🤍 Add to Favorite"
-                    
+
                     # 3. Arkadaşının orijinal butonu (Sadece ismi 'button_label' yaptık)
-                    if st.button(button_label, key=f"fav_suggest_{recipe['id']}", use_container_width=True):
+                    if st.button(
+                        button_label,
+                        key=f"fav_suggest_{recipe['id']}",
+                        use_container_width=True,
+                    ):
                         fav_payload = {
                             "email": EMAIL,
-                            "recipe_id": recipe['id'],
-                            "recipe_title": recipe['title'],
-                            "recipe_image": recipe['image']
+                            "recipe_id": recipe["id"],
+                            "recipe_title": recipe["title"],
+                            "recipe_image": recipe["image"],
                         }
-                        
+
                         # Arkadaşının orijinal API adresi ve isteği (Hiçbir şey değişmedi)
                         res = requests.post(API_FAVORITES, json=fav_payload)
-                        
+
                         if res.status_code == 200:
                             st.toast("⭐ Favorites updated!")
                             # Kalbin kırmızıya dönmesi ve yazının değişmesi için sayfayı tazeler
@@ -267,16 +311,14 @@ if "candidate_recipes" in st.session_state:
 st.divider()
 st.subheader("⚙️ Meal Plan Actions")
 if meal_plan:
-    st.warning("You already have a meal plan. Regenerating will replace the current plan.")
+    st.warning(
+        "You already have a meal plan. Regenerating will replace the current plan."
+    )
     button_label = "🔄 Regenerate Meal Plan"
 else:
     button_label = "✨ Generate Meal Plan"
 
-    payload = {
-        "username": USERNAME,
-        "email": EMAIL,
-        "days": 3
-    }
+    payload = {"username": USERNAME, "email": EMAIL, "days": 3}
 
     with st.spinner("Generating your personalized meal plan..."):
         try:
@@ -305,7 +347,9 @@ st.divider()
 st.subheader("📅 Your Current Plan")
 
 if not meal_plan:
-    st.info("No meal plan found yet. Click the button above to generate your personalized meal plan.")
+    st.info(
+        "No meal plan found yet. Click the button above to generate your personalized meal plan."
+    )
     st.stop()
 
 meal_order = ["Breakfast", "Lunch", "Dinner"]
@@ -318,15 +362,15 @@ for item in meal_plan:
 for day in days:
     st.markdown(f"## {day}")
 
-    day_items = [
-        item for item in meal_plan
-        if item.get("plan_day") == day
-    ]
+    day_items = [item for item in meal_plan if item.get("plan_day") == day]
 
     day_items = sorted(
         day_items,
-        key=lambda x: meal_order.index(x.get("meal_type"))
-        if x.get("meal_type") in meal_order else 99
+        key=lambda x: (
+            meal_order.index(x.get("meal_type"))
+            if x.get("meal_type") in meal_order
+            else 99
+        ),
     )
 
     cols = st.columns(3)
@@ -357,7 +401,9 @@ for day in days:
                         "recipe_title": recipe_title,
                         "recipe_image": item.get("recipe_image"),
                         "source_url": item.get("source_url", ""),
-                        "ingredients_json": item.get("ingredients", '{"ingredients": []}')
+                        "ingredients_json": item.get(
+                            "ingredients", '{"ingredients": []}'
+                        ),
                     }
                     try:
                         res = requests.post(API_FAVORITES, json=fav_payload)
@@ -370,13 +416,14 @@ for day in days:
                 # --- DÜZELTİLEN KISIM: Dakika ve Porsiyon ---
                 # Hem veritabanı formatını (ready_in_minutes) hem de Spoonacular formatını (readyInMinutes) yakalar.
                 # Eğer Backend'den boş (None) gelirse, ekranda çirkin bir "None" yazması yerine "N/A" veya varsayılan değer yazar.
-                
-                ready_time = item.get("ready_in_minutes") or item.get("readyInMinutes") or "45"
+
+                ready_time = (
+                    item.get("ready_in_minutes") or item.get("readyInMinutes") or "45"
+                )
                 servings = item.get("servings") or "4"
 
                 st.caption(f"⏱️ {ready_time} min | 🍽️ {servings} servings")
                 # ---------------------------------------------
- 
 
                 with st.expander("View Details"):
                     st.markdown("#### 🧂 Ingredients")
@@ -410,40 +457,45 @@ for day in days:
                     if st.button(
                         "🔍 Check Ingredients",
                         key=f"check_{meal_plan_id}",
-                        use_container_width=True
+                        use_container_width=True,
                     ):
-                        payload = {
-                            "meal_plan_id": meal_plan_id,
-                            "email": EMAIL
-                        }
+                        payload = {"meal_plan_id": meal_plan_id, "email": EMAIL}
 
                         with st.spinner("Checking your inventory..."):
                             try:
                                 check_response = requests.post(
-                                    API_CHECK_INGREDIENTS,
-                                    json=payload
+                                    API_CHECK_INGREDIENTS, json=payload
                                 )
 
                                 if check_response.status_code == 200:
                                     check_data = check_response.json()
 
                                     if check_data.get("status") == "success":
-                                        st.session_state.ingredient_checks[str(meal_plan_id)] = check_data
+                                        st.session_state.ingredient_checks[
+                                            str(meal_plan_id)
+                                        ] = check_data
                                         st.success("✅ Ingredient check completed!")
                                         st.rerun()
 
                                     else:
-                                        st.error(check_data.get("message", "Ingredient check failed."))
+                                        st.error(
+                                            check_data.get(
+                                                "message", "Ingredient check failed."
+                                            )
+                                        )
 
                                 else:
-                                    st.error("Backend Error: Failed to check ingredients.")
+                                    st.error(
+                                        "Backend Error: Failed to check ingredients."
+                                    )
                                     st.write(check_response.text)
 
                             except requests.exceptions.ConnectionError:
                                 st.error("🚨 CONNECTION ERROR: Backend is not running.")
 
-
-                    check_result = st.session_state.ingredient_checks.get(str(meal_plan_id))
+                    check_result = st.session_state.ingredient_checks.get(
+                        str(meal_plan_id)
+                    )
 
                     if check_result:
                         st.divider()
@@ -479,35 +531,46 @@ for day in days:
                             if st.button(
                                 "➕ Add Missing Items to Shopping List",
                                 key=f"add_missing_{meal_plan_id}",
-                                use_container_width=True
+                                use_container_width=True,
                             ):
-                                payload = {
-                                    "meal_plan_id": meal_plan_id,
-                                    "email": EMAIL
-                                }
+                                payload = {"meal_plan_id": meal_plan_id, "email": EMAIL}
 
-                                with st.spinner("Adding missing items to shopping list..."):
+                                with st.spinner(
+                                    "Adding missing items to shopping list..."
+                                ):
                                     try:
                                         add_response = requests.post(
-                                            API_ADD_MISSING,
-                                            json=payload
+                                            API_ADD_MISSING, json=payload
                                         )
 
                                         if add_response.status_code == 200:
                                             add_data = add_response.json()
 
                                             if add_data.get("status") == "success":
-                                                st.success("✅ Missing items added to your shopping list.")
-                                                st.info("You can view them on the Grocery List page.")
+                                                st.success(
+                                                    "✅ Missing items added to your shopping list."
+                                                )
+                                                st.info(
+                                                    "You can view them on the Grocery List page."
+                                                )
                                             else:
-                                                st.error(add_data.get("message", "Failed to add missing items."))
+                                                st.error(
+                                                    add_data.get(
+                                                        "message",
+                                                        "Failed to add missing items.",
+                                                    )
+                                                )
 
                                         else:
-                                            st.error("Backend Error: Failed to add missing items.")
+                                            st.error(
+                                                "Backend Error: Failed to add missing items."
+                                            )
                                             st.write(add_response.text)
 
                                     except requests.exceptions.ConnectionError:
-                                        st.error("🚨 CONNECTION ERROR: Backend is not running.")
+                                        st.error(
+                                            "🚨 CONNECTION ERROR: Backend is not running."
+                                        )
                         else:
                             st.success("You have all ingredients for this recipe!")
 

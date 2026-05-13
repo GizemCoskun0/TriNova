@@ -1,6 +1,12 @@
 import streamlit as st
 import requests
 import time
+
+st.set_page_config(
+    page_title="Profile Alergies",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 from auth_utils import require_login
 
 require_login()
@@ -59,12 +65,12 @@ col1, col2 = st.columns(2)
 with col1:
     diet_options = ["None", "Vegan", "Vegetarian", "Keto", "Gluten-Free"]
 
-    default_diet_index = diet_options.index(current_diet) if current_diet in diet_options else 0
+    default_diet_index = (
+        diet_options.index(current_diet) if current_diet in diet_options else 0
+    )
 
     diet = st.selectbox(
-        "Do you follow a specific diet?",
-        diet_options,
-        index=default_diet_index
+        "Do you follow a specific diet?", diet_options, index=default_diet_index
     )
 
 with col2:
@@ -72,14 +78,11 @@ with col2:
 
     # Database'den gelen ama listede olmayan allergy değerleri hata vermesin diye filtreliyoruz
     valid_current_allergies = [
-        allergy for allergy in current_allergies
-        if allergy in allergy_options
+        allergy for allergy in current_allergies if allergy in allergy_options
     ]
 
     allergies = st.multiselect(
-        "Select your allergies:",
-        allergy_options,
-        default=valid_current_allergies
+        "Select your allergies:", allergy_options, default=valid_current_allergies
     )
 
 if st.button("Save Preferences", use_container_width=True):
@@ -90,7 +93,7 @@ if st.button("Save Preferences", use_container_width=True):
             "username": username,
             "email": email,
             "diet": diet,
-            "allergies": allergies
+            "allergies": allergies,
         }
 
         try:
@@ -99,7 +102,9 @@ if st.button("Save Preferences", use_container_width=True):
             if post_response.status_code == 200:
                 response_data = post_response.json()
 
-                st.success(f"✅ {response_data.get('message', 'Profile successfully saved!')}")
+                st.success(
+                    f"✅ {response_data.get('message', 'Profile successfully saved!')}"
+                )
                 time.sleep(1.5)
                 st.rerun()
 

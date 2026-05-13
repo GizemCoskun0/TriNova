@@ -1,5 +1,9 @@
 import streamlit as st
 import requests
+
+st.set_page_config(
+    page_title="Grocery List", layout="wide", initial_sidebar_state="collapsed"
+)
 from auth_utils import require_login
 
 require_login()
@@ -9,18 +13,24 @@ EMAIL = st.session_state.email
 
 API_INVENTORY = f"http://localhost:8000/api/inventory/{USERNAME}"
 API_SHOPPING_LIST = f"http://localhost:8000/api/shopping-list/{EMAIL}"
-API_TOGGLE_ITEM = "http://localhost:8000/api/shopping-list/toggle" 
+API_TOGGLE_ITEM = "http://localhost:8000/api/shopping-list/toggle"
 API_CLEAR_CHECKED = f"http://localhost:8000/api/shopping-list/clear/{EMAIL}"
-API_RECALCULATE_SHOPPING_LIST = f"http://localhost:8000/api/shopping-list/recalculate/{EMAIL}"
+API_RECALCULATE_SHOPPING_LIST = (
+    f"http://localhost:8000/api/shopping-list/recalculate/{EMAIL}"
+)
 
 st.title("🛒 My Grocery List")
 st.write("Here you can see your home inventory and the items you need to buy.")
 
+
 def toggle_item(item_id, current_status):
     try:
-        requests.put(f"{API_TOGGLE_ITEM}/{item_id}", json={"is_checked": not current_status})
+        requests.put(
+            f"{API_TOGGLE_ITEM}/{item_id}", json={"is_checked": not current_status}
+        )
     except Exception:
         st.toast("🚨 Error updating item status!")
+
 
 def clear_checked_items():
     try:
@@ -31,6 +41,7 @@ def clear_checked_items():
             st.error("Failed to clear items.")
     except Exception:
         st.error("Backend connection error!")
+
 
 if st.button("🔄 Recalculate Shopping List", use_container_width=True):
     try:
@@ -95,11 +106,11 @@ with col2:
                 value=is_checked,
                 key=f"shopping_item_{item_id}",
                 on_change=toggle_item,
-                args=(item_id, is_checked)
+                args=(item_id, is_checked),
             )
-            
+
         if any(item.get("is_checked") for item in shopping_items):
-            st.write("") # Boşluk
+            st.write("")  # Boşluk
             if st.button("🗑️ Clear Purchased Items", use_container_width=True):
                 clear_checked_items()
                 st.rerun()
