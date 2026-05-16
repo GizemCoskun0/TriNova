@@ -20,6 +20,7 @@ def show_recipe_details_dialog(item, meal_plan_id, email, user_favorites=None):
             user_favorites = get_user_favorite_ids(email)
         except:
             user_favorites = []
+
     meal_type = item.get("meal_type", "")
     recipe_title = item.get("recipe_title", "")
     meal_emoji = get_meal_emoji(meal_type)
@@ -99,11 +100,9 @@ def show_recipe_details_dialog(item, meal_plan_id, email, user_favorites=None):
 
     st.divider()
 
-    # --- INGREDIENT CHECK ---
+    # ENVANTER KONTROL BUTONU
     if st.button(
-        "🔍 Check Ingredients in Inventory",
-        key=f"modal_check_{meal_plan_id}",
-        use_container_width=True,
+        "🔍 Check Ingredients", key=f"check_{meal_plan_id}", use_container_width=True
     ):
         payload = {"meal_plan_id": meal_plan_id, "email": email}
         with st.spinner("Checking your inventory..."):
@@ -115,7 +114,7 @@ def show_recipe_details_dialog(item, meal_plan_id, email, user_favorites=None):
                         st.session_state.ingredient_checks[str(meal_plan_id)] = (
                             check_data
                         )
-                        st.rerun()
+                        st.success("✅ Ingredient check completed!")
                     else:
                         st.error(check_data.get("message", "Ingredient check failed."))
                 else:
@@ -123,6 +122,7 @@ def show_recipe_details_dialog(item, meal_plan_id, email, user_favorites=None):
             except requests.exceptions.ConnectionError:
                 st.error("🚨 CONNECTION ERROR: Backend is not running.")
 
+    # KONTROL SONUÇLARININ GÖSTERİLMESİ
     check_result = st.session_state.ingredient_checks.get(str(meal_plan_id))
 
     if check_result:
@@ -136,11 +136,11 @@ def show_recipe_details_dialog(item, meal_plan_id, email, user_favorites=None):
             st.markdown("**🏠 Available at Home**")
             for available in available_items:
                 name = available.get("name", "")
-                req_amount = available.get("required_amount", "")
+                required_amount = available.get("required_amount", "")
                 home_amount = available.get("home_amount", "")
                 unit = available.get("unit", "")
                 st.success(
-                    f"{name} - Required: {req_amount} {unit}, At home: {home_amount} {unit}"
+                    f"{name} - Required: {required_amount} {unit}, At home: {home_amount} {unit}"
                 )
         else:
             st.info("No matching ingredients found at home.")
@@ -155,22 +155,33 @@ def show_recipe_details_dialog(item, meal_plan_id, email, user_favorites=None):
 
             if st.button(
                 "➕ Add Missing Items to Shopping List",
-                key=f"modal_add_missing_{meal_plan_id}",
+                key=f"add_missing_{meal_plan_id}",
                 use_container_width=True,
             ):
-                payload = {"meal_plan_id": meal_plan_id, "email": email}
-                with st.spinner("Adding missing items..."):
+                payload = {
+                    "meal_plan_id": meal_plan_id,
+                    "email": email,
+                }
+                with st.spinner("Adding missing items to shopping list..."):
                     try:
                         add_response = requests.post(API_ADD_MISSING, json=payload)
                         if add_response.status_code == 200:
-                            if add_response.json().get("status") == "success":
+                            add_data = add_response.json()
+                            if add_data.get("status") == "success":
                                 st.success(
                                     "✅ Missing items added to your shopping list."
                                 )
+                                st.info("You can view them on the Grocery List page.")
                             else:
-                                st.error("Failed to add missing items.")
+                                st.error(
+                                    add_data.get(
+                                        "message", "Failed to add missing items."
+                                    )
+                                )
+                        else:
+                            st.error("Backend Error: Failed to add missing items.")
                     except requests.exceptions.ConnectionError:
-                        st.error("🚨 CONNECTION ERROR.")
+                        st.error("🚨 CONNECTION ERROR: Backend is not running.")
 
 
 def render_recipe_cards(category_key, email, user_favorites):

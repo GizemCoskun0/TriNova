@@ -87,7 +87,7 @@ class AsyncRecipeAPI:
 
     @staticmethod
     async def get_categorized_recipes(
-        diets: list, allergies: list, category: str, number: int = 5
+        diets: list, allergies: list, category: str, number: int = 5, **kwargs
     ):
         url = "https://api.spoonacular.com/recipes/complexSearch"
         params = {
@@ -101,6 +101,10 @@ class AsyncRecipeAPI:
             params["diet"] = ",".join(diets)
         if allergies:
             params["intolerances"] = ",".join(allergies)
+
+        # 🌟 SİHİRLİ DOKUNUŞ: Eğer dışarıdan ekstra parametre (excludeIngredients vb.) gelirse params'a ekle
+        if kwargs:
+            params.update(kwargs)
 
         async with httpx.AsyncClient() as client:
             response = await client.get(url, params=params)

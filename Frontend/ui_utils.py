@@ -31,6 +31,15 @@ def get_meal_emoji(meal_type):
         return "🥗"
     elif meal_type == "Dinner":
         return "🍽️"
+    elif meal_type == "Soup":
+        return "🍲"
+    elif meal_type == "Salad":
+        return "🥗"
+    elif meal_type == "Dessert":
+        return "🍰"
+    elif meal_type == "Drink":
+        return "🥤"
+
     return "🍴"
 
 

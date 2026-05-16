@@ -64,9 +64,14 @@ async def auto_generate_full_plan(
     generated_count = 0
 
     # Her kategori için API'ye istek at
+    # Her kategori için API'ye istek at
     for api_category, meal_types in categories_to_fetch.items():
-        # Öğle ve Akşam yemeği için günde 2, diğerleri için günde 1 tarif lazım
         needed_recipes = days * 2 if type(meal_types) == list else days
+
+        # 🌟 YENİ: Dinamik filtrelerimizi hazırlıyoruz (Karıştırma + Kahvaltı Filtresi)
+        extra_filters = {"sort": "random"}
+        if api_category == "breakfast":
+            extra_filters["excludeIngredients"] = "smoothie, juice, shake, drink"
 
         # AsyncRecipeAPI içindeki fonksiyonunu kullanarak tarifleri çekiyoruz
         recipes = await AsyncRecipeAPI.get_categorized_recipes(
@@ -74,10 +79,22 @@ async def auto_generate_full_plan(
             allergies=user_allergies,
             category=api_category,
             number=needed_recipes,
+            **extra_filters,  # Sihirli filtreleri buraya yolluyoruz
         )
         await asyncio.sleep(1.5)
+
         if not recipes:
-            continue  # Tarif bulunamazsa diğer kategoriye geç
+            continue
+
+        # 💡 GARANTİ FİLTRE (Fail-safe): Genel plan için de başlık temizliği yapıyoruz
+        if api_category == "breakfast":
+            recipes = [
+                r
+                for r in recipes
+                if "smoothie" not in r.get("title", "").lower()
+                and "shake" not in r.get("title", "").lower()
+                and "juice" not in r.get("title", "").lower()
+            ]
 
         recipe_index = 0
         for day in range(1, days + 1):
@@ -123,6 +140,7 @@ async def auto_generate_full_plan(
 
     db.commit()
 
+    # EĞER HİÇ YEMEK BULUNAMADIYSA UI'A HATA GÖNDER
     if generated_count == 0:
         return {
             "status": "error",
@@ -297,17 +315,38 @@ async def generate_category_plan(
     ]
     user_diets = [CEVIRI.get(d.name.lower(), d.name.lower()) for d in db_user.diets]
 
+    category = request.category.lower()
+
+    # Ekstra parametreleri toplamak için bir dinamik sözlük oluşturuyoruz
+    extra_filters = {}
+
+    # Eğer kategori kahvaltıysa, smoothie ve içecek türevlerini hariç tutması için Spoonacular'a bildir
+    if category == "breakfast":
+        extra_filters["excludeIngredients"] = "smoothie, juice, shake, drink"
+
     recipes = await AsyncRecipeAPI.get_categorized_recipes(
         diets=user_diets,
         allergies=user_allergies,
-        category=request.category,
-        number=5,  # Her sekme için 5 tarif yeterli
+        category=category,
+        number=5,
+        **extra_filters,  # 🌟 Hazırladığımız ekstra filtreleri buraya serpiştiriyoruz
     )
+
+    # 💡 GARANTİ FİLTRE (Fail-safe): Spoonacular bazen 'excludeIngredients' kısmına
+    # rağmen başlığında smoothie geçen yemekleri kahvaltı diye getirebilir.
+    # İşi şansa bırakmamak için Python tarafında da küçük bir temizlik yapalım:
+    if category == "breakfast" and recipes:
+        recipes = [
+            r
+            for r in recipes
+            if "smoothie" not in r.get("title", "").lower()
+            and "shake" not in r.get("title", "").lower()
+        ]
 
     if not recipes:
         return {
             "status": "error",
-            "message": "No suitable recipes found for this category.",
+            "message": f"No suitable recipes found for {category}.",
         }
 
     return {"status": "success", "data": recipes}
