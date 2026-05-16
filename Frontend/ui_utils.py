@@ -34,7 +34,6 @@ def get_meal_emoji(meal_type):
     return "🍴"
 
 
-# 🚀 DÜZELTME: Artık tehlikeli session_state yerine, ana dosyadan "email" parametresi alıyor
 def get_user_favorite_ids(email):
     API_FAVORITES = "http://localhost:8000/api/favorites"
     try:

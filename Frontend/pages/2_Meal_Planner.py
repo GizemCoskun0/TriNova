@@ -20,7 +20,7 @@ if "ingredient_checks" not in st.session_state:
     st.session_state.ingredient_checks = {}
 
 API_GET_PLAN = f"http://localhost:8000/api/meal-plan/{EMAIL}"
-API_GENERATE_PLAN = "http://localhost:8000/api/meal-plan/generate"
+API_GENERATE_PLAN = "http://localhost:8000/api/meal-plan/auto-generate"
 API_PROFILE = f"http://localhost:8000/api/profile/{USERNAME}"
 API_INVENTORY = f"http://localhost:8000/api/inventory/{USERNAME}"
 API_GENERATE_CATEGORY = "http://localhost:8000/api/meal-plan/generate-category"
@@ -93,22 +93,56 @@ st.divider()
 
 st.subheader("⚙️ Meal Plan Actions")
 
-tab_main, tab_soup, tab_salad, tab_dessert = st.tabs(
-    ["🍛 Main course", "🥣 Soup", "🥗 Salad", "🍰 Dessert"]
-)
+col1, col2, col3, col4, col5, col6 = st.columns(6)
 
-with tab_main:
-    if st.button("🔄 Main Course Recommendations", use_container_width=True):
-        with st.spinner("Searching for main courses..."):
+with col1:
+    show_breakfast = st.toggle("🍳 Breakfast")
+with col2:
+    show_main = st.toggle("🍛 Main course(Lunch/Dinner)")
+with col3:
+    show_soup = st.toggle("🥣 Soup")
+with col4:
+    show_salad = st.toggle("🥗 Salad")
+with col5:
+    show_dessert = st.toggle("🍰 Dessert")
+with col6:
+    show_drink = st.toggle("🍹 Drink")
+
+st.divider()
+
+# 3. Adım: Hangi toggle açıksa o bölümü ekranda göster
+if show_breakfast:
+    st.markdown("### 🍳 Breakfast")
+    if st.button(
+        "🔄 Breakfast Recommendations", use_container_width=True, key="btn_breakfast"
+    ):
+        with st.spinner("Searching for breakfast options..."):
             res = requests.post(
-                API_GENERATE_CATEGORY, json={"email": EMAIL, "category": "main course"}
+                API_GENERATE_CATEGORY, json={"email": EMAIL, "category": "breakfast"}
+            )
+            if res.status_code == 200 and res.json().get("status") == "success":
+                st.session_state["candidates_breakfast"] = res.json().get("data")
+    render_recipe_cards("breakfast", EMAIL, user_favorites)
+    st.divider()
+if show_main:
+    st.markdown("### 🍛 Main Course")
+    if st.button(
+        "🔄 Main Course Recommendations", use_container_width=True, key="btn_main"
+    ):
+        with st.spinner("Searching for main courses..."):
+            # DÜZELTME 1: Burası API_GENERATE_PLAN kalmıştı, CATEGORY olarak düzeltildi
+            res = requests.post(
+                API_GENERATE_CATEGORY,
+                json={"email": EMAIL, "category": "main course"},
             )
             if res.status_code == 200 and res.json().get("status") == "success":
                 st.session_state["candidates_main"] = res.json().get("data")
     render_recipe_cards("main", EMAIL, user_favorites)
+    st.divider()
 
-with tab_soup:
-    if st.button("🥣 Soup Recommendations", use_container_width=True):
+if show_soup:
+    st.markdown("### 🥣 Soup")
+    if st.button("🥣 Soup Recommendations", use_container_width=True, key="btn_soup"):
         with st.spinner("Searching for soups..."):
             res = requests.post(
                 API_GENERATE_CATEGORY, json={"email": EMAIL, "category": "soup"}
@@ -116,9 +150,11 @@ with tab_soup:
             if res.status_code == 200 and res.json().get("status") == "success":
                 st.session_state["candidates_soup"] = res.json().get("data")
     render_recipe_cards("soup", EMAIL, user_favorites)
+    st.divider()
 
-with tab_salad:
-    if st.button("🥗 Salad Recommendations", use_container_width=True):
+if show_salad:
+    st.markdown("### 🥗 Salad")
+    if st.button("🥗 Salad Recommendations", use_container_width=True, key="btn_salad"):
         with st.spinner("Searching for salads..."):
             res = requests.post(
                 API_GENERATE_CATEGORY, json={"email": EMAIL, "category": "salad"}
@@ -126,9 +162,13 @@ with tab_salad:
             if res.status_code == 200 and res.json().get("status") == "success":
                 st.session_state["candidates_salad"] = res.json().get("data")
     render_recipe_cards("salad", EMAIL, user_favorites)
+    st.divider()
 
-with tab_dessert:
-    if st.button("🍰 Dessert Recommendations", use_container_width=True):
+if show_dessert:
+    st.markdown("### 🍰 Dessert")
+    if st.button(
+        "🍰 Dessert Recommendations", use_container_width=True, key="btn_dessert"
+    ):
         with st.spinner("Searching for desserts..."):
             res = requests.post(
                 API_GENERATE_CATEGORY, json={"email": EMAIL, "category": "dessert"}
@@ -136,9 +176,42 @@ with tab_dessert:
             if res.status_code == 200 and res.json().get("status") == "success":
                 st.session_state["candidates_dessert"] = res.json().get("data")
     render_recipe_cards("dessert", EMAIL, user_favorites)
+    st.divider()
+
+if show_drink:
+    st.markdown("### 🍹 Drink")
+    if st.button("🍹 Drink Recommendations", use_container_width=True, key="btn_drink"):
+        with st.spinner("Searching for drinks..."):
+            res = requests.post(
+                API_GENERATE_CATEGORY, json={"email": EMAIL, "category": "drink"}
+            )
+            if res.status_code == 200 and res.json().get("status") == "success":
+                st.session_state["candidates_drink"] = res.json().get("data")
+    render_recipe_cards("drink", EMAIL, user_favorites)
+    st.divider()
+
+# DÜZELTME 2: Çift olan Magic Planner kısmı teke düşürüldü ve doğru payload eklendi
+st.subheader("✨ Magic Planner")
+st.write(
+    "Let us create your comprehensive 3-day meal plan (Breakfast, Main Course, Soup, Salad, Dessert, Drink) with just one click."
+)
+
+if st.button(
+    "🪄 Auto-Generate Full 3-Day Plan", type="primary", use_container_width=True
+):
+    with st.spinner(
+        "Generating your perfect 3-day meal plan... This might take a moment ⏳"
+    ):
+        payload = {"username": USERNAME, "email": EMAIL, "days": 3}
+        res = requests.post(API_GENERATE_PLAN, json=payload)
+
+        if res.status_code == 200:
+            st.success("✅ 3-day Meal Plan Generated Successfully!")
+            st.rerun()
+        else:
+            st.error("An error occurred while generating the meal plan.")
 
 st.divider()
-
 st.subheader("📅 Your Current Plan")
 
 render_current_plan(meal_plan, EMAIL, user_favorites)

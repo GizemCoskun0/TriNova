@@ -55,4 +55,4 @@ class SingleMealAddRequest(BaseModel):
 
 class MealPlanCategoryRequest(BaseModel):
     email: str
-    category: str  # Örn: "soup", "salad", "dessert"
+    category: str

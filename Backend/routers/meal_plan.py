@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 import json
-
+import asyncio
 import models
 from database import get_db
 from api_process import AsyncRecipeAPI
@@ -13,15 +13,15 @@ from schemas import MealPlanCategoryRequest  # Yukarıya importlara eklemeyi unu
 router = APIRouter(prefix="/api", tags=["Meal Plan"])
 
 
-@router.post("/meal-plan/generate")
-async def generate_meal_plan(
+@router.post("/meal-plan/auto-generate")
+async def auto_generate_full_plan(
     request: MealPlanGenerateRequest, db: Session = Depends(get_db)
 ):
     db_user = db.query(models.User).filter(models.User.email == request.email).first()
     if not db_user:
         return {"status": "error", "message": "User not found."}
 
-    # Çeviri sözlüğü (Diyet ve Alerjiler için)
+    # Kullanıcının diyet ve alerjilerini İngilizce formatta hazırlama
     CEVIRI = {
         "vejetaryen": "vegetarian",
         "vegan": "vegan",
@@ -35,22 +35,104 @@ async def generate_meal_plan(
         "soya": "soy",
         "buğday": "wheat",
     }
-
     user_allergies = [
         CEVIRI.get(a.name.lower(), a.name.lower()) for a in db_user.allergies
     ]
     user_diets = [CEVIRI.get(d.name.lower(), d.name.lower()) for d in db_user.diets]
 
-    # Tercihlere göre rastgele 10 aday tarif çekiyoruz
-    recipes = await AsyncRecipeAPI.get_random_meal_plan(
-        diets=user_diets, allergies=user_allergies, number=10
-    )
+    days = request.days  # Varsayılan 3 gün
 
-    if not recipes:
-        return {"status": "error", "message": "No suitable recipes found."}
+    # Hangi kategorilerden tarif çekeceğimiz ve sistemdeki öğün isimleri
+    categories_to_fetch = {
+        "breakfast": "Breakfast",
+        "main course": [
+            "Lunch",
+            "Dinner",
+        ],  # Ana yemekten günde 2 tane lazım (Öğle ve Akşam)
+        "soup": "Soup",
+        "salad": "Salad",
+        "dessert": "Dessert",
+        "beverage": "Drink",
+    }
 
-    # 🚨 DİKKAT: Veritabanına kayıt yapmıyoruz, sadece listeyi döndürüyoruz.
-    return {"status": "success", "data": recipes}
+    # Eski planı temizlemek istersen (isteğe bağlı)
+    db.query(models.MealPlan).filter(
+        models.MealPlan.user_email == request.email
+    ).delete()
+    db.commit()
+
+    generated_count = 0
+
+    # Her kategori için API'ye istek at
+    for api_category, meal_types in categories_to_fetch.items():
+        # Öğle ve Akşam yemeği için günde 2, diğerleri için günde 1 tarif lazım
+        needed_recipes = days * 2 if type(meal_types) == list else days
+
+        # AsyncRecipeAPI içindeki fonksiyonunu kullanarak tarifleri çekiyoruz
+        recipes = await AsyncRecipeAPI.get_categorized_recipes(
+            diets=user_diets,
+            allergies=user_allergies,
+            category=api_category,
+            number=needed_recipes,
+        )
+        await asyncio.sleep(1.5)
+        if not recipes:
+            continue  # Tarif bulunamazsa diğer kategoriye geç
+
+        recipe_index = 0
+        for day in range(1, days + 1):
+            day_str = f"Day {day}"
+
+            # Eğer main course ise hem Lunch hem Dinner için dön
+            types_for_day = meal_types if type(meal_types) == list else [meal_types]
+
+            for meal_type in types_for_day:
+                if recipe_index < len(recipes):
+                    rec = recipes[recipe_index]
+
+                    # Talimatları düzenle
+                    raw_instr = rec.get("instructions", "")
+                    if not raw_instr and rec.get("analyzedInstructions"):
+                        steps = rec["analyzedInstructions"][0].get("steps", [])
+                        raw_instr = "\n".join(
+                            [f"{s['number']}. {s['step']}" for s in steps]
+                        )
+
+                    # Veritabanına kaydet
+                    new_plan = models.MealPlan(
+                        user_id=db_user.id,
+                        user_email=db_user.email,
+                        plan_day=day_str,
+                        meal_type=meal_type,
+                        recipe_id=rec["id"],
+                        recipe_title=rec["title"],
+                        recipe_image=rec.get("image", ""),
+                        ingredients=json.dumps(
+                            {
+                                "ingredients": rec.get("usedIngredients", [])
+                                + rec.get("missedIngredients", [])
+                            }
+                        ),
+                        instructions=raw_instr or "No instructions available.",
+                        ready_in_minutes=rec.get("readyInMinutes", 45),
+                        servings=rec.get("servings", 4),
+                    )
+                    db.add(new_plan)
+                    generated_count += 1
+                    recipe_index += 1
+
+    db.commit()
+
+    if generated_count == 0:
+        return {
+            "status": "error",
+            "message": "Tarifler çekilemedi. API hız sınırına takılmış olabilirsiniz.",
+        }
+
+    return {
+        "status": "success",
+        "message": f"Successfully generated {generated_count} meal items for {days} days.",
+    }
 
 
 # ------------------- Tek öğün ekleme endpoint'i ------------------

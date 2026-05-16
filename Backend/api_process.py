@@ -1,9 +1,9 @@
 import os
 import asyncio
 import aiohttp
+import httpx
 from dotenv import load_dotenv
 
-# Load environment variables from the .env file
 load_dotenv()
 
 API_KEY = os.getenv("SPOONACULAR_API_KEY")
@@ -11,9 +11,6 @@ BASE_URL = "https://api.spoonacular.com/recipes"
 
 
 class AsyncRecipeAPI:
-
-    # 1. YETENEK: SMART INVENTORY İÇİN (Malzemeli + Filtreli)
-    # 1. YETENEK: SMART INVENTORY İÇİN (Malzemeli + Filtreli)
     @staticmethod
     async def search_by_ingredients(
         ingredients_list, diets=None, allergies=None, number=5
@@ -92,10 +89,7 @@ class AsyncRecipeAPI:
     async def get_categorized_recipes(
         diets: list, allergies: list, category: str, number: int = 5
     ):
-        # Spoonacular'ın complexSearch servisini kullanıyoruz
         url = "https://api.spoonacular.com/recipes/complexSearch"
-
-        # Mevcut fonksiyonundaki API_KEY'i burada da kullanıyorsun
         params = {
             "apiKey": API_KEY,
             "type": category,
@@ -103,14 +97,10 @@ class AsyncRecipeAPI:
             "addRecipeInformation": True,
             "fillIngredients": True,
         }
-
-        # Diyet ve alerji kurallarını aynen koruyoruz ki kullanıcının sağlığı tehlikeye girmesin
         if diets:
             params["diet"] = ",".join(diets)
         if allergies:
             params["intolerances"] = ",".join(allergies)
-
-        import httpx
 
         async with httpx.AsyncClient() as client:
             response = await client.get(url, params=params)
