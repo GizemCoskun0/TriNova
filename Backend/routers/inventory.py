@@ -6,6 +6,7 @@ from database import get_db
 from schemas import InventoryItem
 from schemas import MealPlanItemRequest,ItemToggleRequest
 from services.ingredient_service import compare_recipe_with_inventory
+from services.fuzzy_service import correct_ingredient_name
 
 router = APIRouter(
     prefix="/api",
@@ -25,6 +26,7 @@ def get_inventory(username: str, db: Session = Depends(get_db)):
         "data": [{"id": i.id, "name": i.name, "amount": i.amount, "unit": i.unit} for i in items]
     }
 
+
 @router.post("/inventory")
 def add_inventory(item: InventoryItem, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == item.username).first()
@@ -33,6 +35,13 @@ def add_inventory(item: InventoryItem, db: Session = Depends(get_db)):
     
     user_email = user.email
     
+    # --- FUZZY MATCHING (AKILLI KELİME DÜZELTME) ---
+    original_name = item.item_name
+    corrected_name, is_corrected = correct_ingredient_name(original_name)
+    
+    item.item_name = corrected_name 
+    # -----------------------------------------------------
+
     existing_item = db.query(models.Inventory).filter(
         models.Inventory.user_id == user.id, 
         models.Inventory.name == item.item_name
@@ -60,7 +69,15 @@ def add_inventory(item: InventoryItem, db: Session = Depends(get_db)):
             db.delete(shopping_item)
     db.commit()
     
-    return {"status": "success", "message": f"'{item.item_name}' added to the inventory!"}
+    # Eğer sistem bir düzeltme yaptıysa, kullanıcıya bunu haber verir
+    if is_corrected:
+        message = f"✨ Auto-corrected '{original_name}' to '{corrected_name}' and added to inventory!"
+    else:
+        message = f"'{item.item_name}' added to the inventory!"
+        
+    return {"status": "success", "message": message}
+
+
 
 @router.delete("/inventory/{item_id}")
 def delete_inventory(item_id: int, db: Session = Depends(get_db)):

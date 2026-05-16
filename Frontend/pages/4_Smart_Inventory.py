@@ -180,6 +180,7 @@ with col2:
     if "new_ingredient_qty" not in st.session_state:
         st.session_state.new_ingredient_qty = 1.0
 
+
     def handle_add_item():
         item_name = st.session_state.new_ingredient_name
         item_qty = st.session_state.new_ingredient_qty
@@ -187,8 +188,11 @@ with col2:
         if item_name:
             clean_name = item_name.strip().capitalize()
             res = add_item(clean_name, amount=item_qty)
+            
             if res.get("status") == "success":
-                st.toast(f"{item_qty} {clean_name} added to database!")
+                # BACKEND'DEN GELEN MESAJI EKRANA BASIYORUZ
+                backend_message = res.get("message", "Item added!")
+                st.toast(f"✅ {item_qty}x {backend_message}")
 
                 st.session_state.new_ingredient_name = ""
                 st.session_state.new_ingredient_qty = 1.0
@@ -196,6 +200,7 @@ with col2:
                 update_shopping_list_after_inventory_add()
             else:
                 st.error(res.get("message"))
+
 
     input_col1, input_col2 = st.columns([3, 1])
     with input_col1:
