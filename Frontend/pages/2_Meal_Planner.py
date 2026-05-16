@@ -216,6 +216,25 @@ st.subheader("📅 Your Current Plan")
 
 render_current_plan(meal_plan, EMAIL, user_favorites)
 
+
+
 st.divider()
-if st.button("📥 Export to PDF", use_container_width=True):
-    st.info("PDF export feature will be available soon.")
+
+# STREAMLIT'İN DOĞAL DOWNLOAD BUTONU
+try:
+    API_PDF_URL = f"http://localhost:8000/api/meal-plan/{EMAIL}/pdf"
+    # Kullanıcı butona tıkladığı an Streamlit doğrudan Backend'e istek atıp PDF'i indirir
+    pdf_response = requests.get(API_PDF_URL)
+    
+    if pdf_response.status_code == 200:
+        st.download_button(
+            label="📥 Export to PDF",
+            data=pdf_response.content,
+            file_name=f"my_meal_plan.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
+    else:
+        st.button("📥 Export to PDF (Plan Empty)", disabled=True, use_container_width=True)
+except Exception:
+    st.button("📥 Export to PDF (Backend Offline)", disabled=True, use_container_width=True)
