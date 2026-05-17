@@ -94,8 +94,9 @@ class AsyncRecipeAPI:
             "apiKey": API_KEY,
             "type": category,
             "number": number,
-            "addRecipeInformation": True,
-            "fillIngredients": True,
+            "addRecipeInformation": "true",
+            "fillIngredients": "true",
+            "instructionsRequired": "true"
         }
         if diets:
             params["diet"] = ",".join(diets)
