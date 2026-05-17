@@ -1,16 +1,31 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-import json
 import asyncio
+import io
+import json
+import re
+from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
+
 import models
-from database import get_db
 from api_process import AsyncRecipeAPI
-from schemas import MealPlanGenerateRequest, MealPlanItemRequest, SingleMealAddRequest
-from services.recipe_filter_service import recipe_matches_user_preferences
+from database import get_db
+from schemas import (
+    MealPlanCategoryRequest,
+    MealPlanGenerateRequest,
+    MealPlanItemRequest,
+    SingleMealAddRequest,
+)
 from services.ingredient_service import compare_recipe_with_inventory
-from schemas import MealPlanCategoryRequest  # Yukarıya importlara eklemeyi unutma
+from services.recipe_filter_service import recipe_matches_user_preferences
+
+# --- REPORTLAB (PDF) IMPORTLARI ---
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer,PageBreak
 
 router = APIRouter(prefix="/api", tags=["Meal Plan"])
+
 
 
 @router.post("/meal-plan/auto-generate")
@@ -350,3 +365,152 @@ async def generate_category_plan(
         }
 
     return {"status": "success", "data": recipes}
+
+
+
+
+@router.get("/meal-plan/{email}/pdf")
+def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.email == email).first()
+    if not db_user:
+        return {"status": "error", "message": "User not found."}
+
+    # Veritabanından verileri çekiyoruz
+    raw_items = (
+        db.query(models.MealPlan)
+        .filter(models.MealPlan.user_email == email)
+        .all()
+    )
+
+    # --- GÜNLERİ VE ÖĞÜNLERİ MANTIKSAL SIRAYA SOKMA ---
+    meal_order = ["Breakfast", "Lunch", "Dinner", "Soup", "Salad", "Dessert", "Drink"]
+
+    def sort_logic(item):
+        # "Day 1", "Day 2" içindeki numarayı al
+        day_num = int(item.plan_day.split()[-1]) if item.plan_day and item.plan_day.split()[-1].isdigit() else 0
+        # Öğünün listedeki sırasını bul
+        meal_idx = meal_order.index(item.meal_type) if item.meal_type in meal_order else 99
+        return (day_num, meal_idx)
+
+    # Verileri hem Güne hem de Öğün Sırasına (Kahvaltı -> Öğle -> Akşam) göre sırala
+    meal_plan_items = sorted(raw_items, key=sort_logic)
+
+    # PDF'i bellekte (RAM) oluşturmak için BytesIO kullanılıyor
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=40,
+        title=f"Meal Plan - {db_user.username}",  
+        author="Smart Kitchen Assistant"    
+    )
+    story = []
+
+    pdf_styles = getSampleStyleSheet()
+
+    # PDF Başlığı
+    title_style = ParagraphStyle(
+        "TitleStyle",
+        parent=pdf_styles["Heading1"],
+        fontSize=24,
+        textColor=colors.HexColor("#ff4b4b"),
+        spaceAfter=15,
+        alignment=1,  # Center
+    )
+    story.append(Paragraph("SmartKitchen - 3-Day Meal Plan", title_style))
+    story.append(
+        Paragraph(
+            f"Prepared for: {db_user.username} ({email})", pdf_styles["Normal"]
+        )
+    )
+    story.append(Spacer(1, 20))
+
+    # Öğünleri Gün Gün PDF'e Ekleme
+    current_day = ""
+    for item in meal_plan_items:
+        if item.plan_day != current_day:
+            if current_day != "":
+                story.append(PageBreak())  # Yeni güne geçerken sayfa atla
+            current_day = item.plan_day
+            
+            # Gün Başlığı (H2 Seviyesi)
+            day_style = ParagraphStyle(
+                "DayStyle",
+                parent=pdf_styles["Heading2"],
+                fontSize=18,
+                textColor=colors.HexColor("#1f2937"),
+                spaceBefore=18,
+                spaceAfter=8,
+            )
+            story.append(Paragraph(f"<b>{current_day}</b>", day_style))
+
+        
+        meal_style = ParagraphStyle(
+            "MealStyle",
+            parent=pdf_styles["Heading3"],
+            fontSize=14,
+            textColor=colors.HexColor("#ff4b4b"),
+            spaceBefore=10,
+            spaceAfter=4,
+        )
+        story.append(
+            Paragraph(
+                f"• {item.meal_type}: {item.recipe_title}",
+                meal_style,
+            )
+        )
+
+        # Süre ve Porsiyon Bilgisi
+        meta_text = f"<i>Time: {item.ready_in_minutes} min | Portion: {item.servings} People</i>"
+        story.append(Paragraph(meta_text, pdf_styles["Normal"]))
+        story.append(Spacer(1, 4))
+
+        # --- MALZEMELERİN YAZDIRILMASI ---
+        story.append(Paragraph("<b>Ingredients:</b>", pdf_styles["Normal"]))
+        try:
+            ing_data = json.loads(item.ingredients)
+            ingredients = (
+                ing_data.get("ingredients", [])
+                or ing_data.get("usedIngredients", [])
+                + ing_data.get("missedIngredients", [])
+            )
+
+            for ing in ingredients:
+                ing_text = f"- {ing.get('amount', '')} {ing.get('unit', '')} {ing.get('name', '')}"
+                story.append(Paragraph(ing_text, pdf_styles["Normal"]))
+        except:
+            story.append(
+                Paragraph(
+                    "- Material information could not be parsed.",
+                    pdf_styles["Normal"],
+                )
+            )
+
+        story.append(Spacer(1, 4))
+
+        # --- TALİMATLARIN YAZDIRILMASI ---
+        clean_instructions = (
+            re.sub("<.*?>", "", item.instructions)
+            if item.instructions
+            else "No instructions available."
+        )
+        story.append(
+            Paragraph(f"<b>Preparation:</b> {clean_instructions}", pdf_styles["Normal"])
+        )
+
+        # Öğünler arasına boşluk
+        story.append(Spacer(1, 15))
+
+    doc.build(story)
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=meal_plan_{db_user.username}.pdf"
+        },
+    )

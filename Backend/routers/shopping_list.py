@@ -6,6 +6,14 @@ from database import get_db
 from schemas import MealPlanItemRequest,ItemToggleRequest
 from services.ingredient_service import compare_recipe_with_inventory
 
+from fastapi.responses import StreamingResponse
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+import io
+
+
 router = APIRouter(
     prefix="/api",
     tags=["Shopping List"]
@@ -203,3 +211,62 @@ def clear_checked_items(email: str, db: Session = Depends(get_db)):
 
     db.commit()
     return {"status": "success", "message": "Items successfully moved to inventory and removed from shopping list."}
+
+
+
+@router.get("/shopping-list/{email}/pdf")
+def export_shopping_list_pdf(email: str, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.email == email).first()
+    if not db_user:
+        return {"status": "error", "message": "User not found."}
+
+    # Sadece henüz alınmamış (is_checked == False) ürünleri çekiyoruz
+    shopping_items = db.query(models.ShoppingListItem).filter(
+        models.ShoppingListItem.user_email == email,
+        models.ShoppingListItem.is_checked == False
+    ).all()
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, 
+        pagesize=letter, 
+        rightMargin=50, 
+        leftMargin=50, 
+        topMargin=50, 
+        bottomMargin=50,
+        title=f"Grocery List - {db_user.username}", 
+        author="Smart Kitchen Assistant"           
+    )
+    story = []
+    
+    styles = getSampleStyleSheet()
+    
+    # PDF Başlığı
+    title_style = ParagraphStyle(
+        'TitleStyle', parent=styles['Heading1'], fontSize=24, 
+        textColor=colors.HexColor("#2196F3"), spaceAfter=20, alignment=1
+    )
+    story.append(Paragraph("🛒 My Grocery List", title_style))
+    story.append(Paragraph(f"Prepared for: {db_user.username}", styles['Normal']))
+    story.append(Spacer(1, 20))
+
+    if not shopping_items:
+        story.append(Paragraph("<i>Your shopping list is currently empty.</i>", styles['Normal']))
+    else:
+        # Market listesi stili
+        item_style = ParagraphStyle('ItemStyle', parent=styles['Normal'], fontSize=14, spaceAfter=10)
+        
+        for item in shopping_items:
+            # Başına boş bir kutucuk koyuluyor (çıktı alınıp kalemle çizilsin diye)
+            # Başına "f" harfi eklendi:
+            text = f"<font color='white'>.</font><font size='14' face='Helvetica'>[ &nbsp; ]</font> &nbsp;&nbsp; <b>{item.amount} {item.unit}</b> {item.item_name}"
+            story.append(Paragraph(text, item_style))
+
+    doc.build(story)
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        buffer, 
+        media_type="application/pdf", 
+        headers={"Content-Disposition": f"attachment; filename=grocery_list_{db_user.username}.pdf"}
+    )

@@ -117,7 +117,25 @@ with col2:
     else:
         st.success("Your shopping list is empty. 🥳")
 
+
+
 st.divider()
 
-if st.button("📤 Send to WhatsApp / Mail", use_container_width=True):
-    st.success("Message sent! Integration coming soon.")
+# PDF İndirme Butonu Bölümü
+try:
+    API_PDF_URL = f"http://localhost:8000/api/shopping-list/{EMAIL}/pdf"
+    pdf_response = requests.get(API_PDF_URL)
+    
+    if pdf_response.status_code == 200:
+        st.download_button(
+            label="📥 Download Grocery List (PDF)",
+            data=pdf_response.content,
+            file_name=f"grocery_list_{USERNAME}.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+            type="primary"
+        )
+    else:
+        st.button("📥 Download Grocery List (PDF)", disabled=True, use_container_width=True)
+except Exception:
+    st.button("📥 PDF Server Offline", disabled=True, use_container_width=True)
