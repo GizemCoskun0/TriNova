@@ -14,10 +14,13 @@ def register_user(username, email, password):
     cursor = conn.cursor()
 
     try:
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO users (username, email, password)
             VALUES (?, ?, ?)
-        """, (username, email, password))
+        """,
+            (username, email, password),
+        )
 
         conn.commit()
         conn.close()
@@ -32,26 +35,34 @@ def check_login(email, password):
     conn = create_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT id, username, email
         FROM users
         WHERE email = ? AND password = ?
-    """, (email, password))
+    """,
+        (email, password),
+    )
 
     user = cursor.fetchone()
     conn.close()
 
     return user
+
+
 def get_dashboard_data(email):
     conn = create_connection()
     cursor = conn.cursor()
 
     # User
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT id, username, email
         FROM users
         WHERE email = ?
-    """, (email,))
+    """,
+        (email,),
+    )
     user = cursor.fetchone()
 
     if not user:
@@ -61,46 +72,78 @@ def get_dashboard_data(email):
     user_id = user[0]
 
     # Inventory count
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT COUNT(*)
         FROM inventory
         WHERE user_id = ?
-    """, (user_id,))
+    """,
+        (user_id,),
+    )
     inventory_count = cursor.fetchone()[0]
 
     # Shopping list count
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT COUNT(*)
         FROM shopping_list_items
         WHERE user_email = ? AND is_checked = 0
-    """, (email,))
+    """,
+        (email,),
+    )
     shopping_count = cursor.fetchone()[0]
 
     # Meal plan count
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT COUNT(*)
         FROM meal_plans
         WHERE user_email = ?
-    """, (email,))
+    """,
+        (email,),
+    )
     meal_plan_count = cursor.fetchone()[0]
 
+    # 🌟 YENİ: Favorite count
+    # Veritabanınızdaki favoriler tablosunun adının "favorites" ve
+    # sütunun "user_email" olduğunu varsayarak yazılmıştır.
+    try:
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM favorite_recipes
+            WHERE user_email = ?
+        """,
+            (email,),
+        )
+        favorite_count = cursor.fetchone()[0]
+    except sqlite3.OperationalError:
+        # Eğer tablo adı farklıysa hata vermemesi için varsayılan 0 döndürür
+        favorite_count = 0
+
     # Diet
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT diets.name
         FROM diets
         JOIN user_diets ON diets.id = user_diets.diet_id
         WHERE user_diets.user_id = ?
         LIMIT 1
-    """, (user_id,))
+    """,
+        (user_id,),
+    )
     diet_result = cursor.fetchone()
     diet = diet_result[0] if diet_result else "None"
 
     # Allergy count
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT COUNT(*)
         FROM user_allergies
         WHERE user_id = ?
-    """, (user_id,))
+    """,
+        (user_id,),
+    )
     allergy_count = cursor.fetchone()[0]
 
     conn.close()
@@ -109,6 +152,7 @@ def get_dashboard_data(email):
         "inventory_count": inventory_count,
         "shopping_count": shopping_count,
         "meal_plan_count": meal_plan_count,
+        "favorite_count": favorite_count,  # 🌟 YENİ EKLENDİ
         "diet": diet,
-        "allergy_count": allergy_count
+        "allergy_count": allergy_count,
     }

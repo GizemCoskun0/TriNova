@@ -41,7 +41,6 @@ def show_recipe_details_dialog(item, meal_plan_id, email, user_favorites=None):
             f"⏱️ **Ready in:** {ready_time} minutes | 🍽️ **Servings:** {servings} people"
         )
 
-        # MODAL İÇİNDEKİ FAVORİ BUTONU
         recipe_id = item.get("recipe_id")
         is_fav = recipe_id in user_favorites
         heart_icon = "❤️ In Favorites" if is_fav else "🤍 Add to Favorites"
@@ -66,7 +65,6 @@ def show_recipe_details_dialog(item, meal_plan_id, email, user_favorites=None):
 
     st.divider()
 
-    # MALZEMELER VE TALİMATLAR (Alt Kısım)
     col1, col2 = st.columns([1, 1])
 
     with col1:
@@ -206,7 +204,6 @@ def render_recipe_cards(category_key, email, user_favorites):
                     key=f"day_{category_key}_{recipe['id']}",
                 )
 
-                # --- ÖĞÜN SEÇENEKLERİNİ KATEGORİYE GÖRE AYARLAMA ---
                 if category_key == "breakfast":
                     meal_options = ["Breakfast"]
                 elif category_key == "salad":
@@ -230,17 +227,17 @@ def render_recipe_cards(category_key, email, user_favorites):
                         "Drink",
                     ]
                 is_disabled = len(meal_options) == 1
-                # ----------------------------------------------------
 
                 target_meal = st.selectbox(
                     "Select Meal",
-                    meal_options,  # <-- Buraya meal_options değişkenini verdik
+                    meal_options,
                     key=f"meal_{category_key}_{recipe['id']}",
                     disabled=is_disabled,
                 )
 
                 btn_col1, btn_col2 = st.columns(2)
 
+                # --- ADD TO PLAN BUTTON ---
                 with btn_col1:
                     if st.button(
                         f"➕ Add to Plan",
@@ -287,6 +284,7 @@ def render_recipe_cards(category_key, email, user_favorites):
                             st.toast("✅ Added to Plan!")
                             st.rerun()
 
+                # --- ADD TO FAVORITE BUTTON ---
                 with btn_col2:
                     is_fav = recipe["id"] in user_favorites
                     button_label = "❤️ In Favorite" if is_fav else "🤍 Add to Favorite"
@@ -302,10 +300,64 @@ def render_recipe_cards(category_key, email, user_favorites):
                             "recipe_title": recipe["title"],
                             "recipe_image": recipe["image"],
                         }
-                        res = requests.post(API_FAVORITES, json=fav_payload)
+                        # Make sure API_FAVORITES is defined in this file or imported
+                        res = requests.post(
+                            "http://localhost:8000/api/favorites", json=fav_payload
+                        )  # URL'yi kendi API'nize göre güncelleyin
                         if res.status_code == 200:
                             st.toast("⭐ Favorites updated!")
                             st.rerun()
+            st.divider()
+
+            detail_col1, detail_col2 = st.columns([1, 1])
+
+            with detail_col1:
+                st.markdown("#### 🧂 Ingredients")
+
+                # Malzemeleri Spoonacular API'nin dönebileceği tüm olası formlardan topluyoruz
+                ing_list = recipe.get("extendedIngredients", [])
+                if not ing_list:
+                    ing_list = recipe.get("usedIngredients", []) + recipe.get(
+                        "missedIngredients", []
+                    )
+
+                if ing_list:
+                    for ing in ing_list:
+                        name = ing.get("name", ing.get("nameClean", "Unknown"))
+                        amount = ing.get("amount", "")
+                        unit = ing.get("unit", "")
+                        st.write(f"- **{name}**: {amount} {unit}")
+                else:
+                    # Alternatif fallback
+                    basic_ings = recipe.get("ingredients")
+                    if basic_ings and isinstance(basic_ings, list):
+                        for ing in basic_ings:
+                            name = ing.get("name", "Unknown")
+                            amount = ing.get("amount", "")
+                            unit = ing.get("unit", "")
+                            st.write(f"- **{name}**: {amount} {unit}")
+                    else:
+                        st.info("Ingredients are not available for this recipe.")
+
+            with detail_col2:
+                st.markdown("#### 👩‍🍳 Instructions")
+
+                # Yapılış adımlarını Spoonacular'ın analyzedInstructions yapısından okuyoruz
+                analyzed = recipe.get("analyzedInstructions", [])
+                raw_instr = recipe.get("instructions")
+
+                if analyzed and len(analyzed) > 0:
+                    steps = analyzed[0].get("steps", [])
+                    for s in steps:
+                        st.write(f"**{s['number']}.** {s['step']}")
+                elif raw_instr:
+                    # Eğer HTML tagleri içeriyorsa clean_html kullanın, yoksa direkt yazdırın
+                    try:
+                        st.write(clean_html(raw_instr))
+                    except:
+                        st.write(raw_instr)
+                else:
+                    st.info("Instructions will be available soon.")
 
 
 def render_current_plan(meal_plan, email, user_favorites):

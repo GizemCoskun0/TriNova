@@ -90,9 +90,10 @@ def show_home_page():
         st.error("Dashboard data could not be loaded.")
         return
 
+    # Değişiklik burada: meal_plan_count yerine favorite_count çekiyoruz
     inventory_count = dashboard_data.get("inventory_count", 0)
     shopping_count = dashboard_data.get("shopping_count", 0)
-    meal_plan_count = dashboard_data.get("meal_plan_count", 0)
+    favorite_count = dashboard_data.get("favorite_count", 0)
     diet = dashboard_data.get("diet", "Not specified")
     allergy_count = dashboard_data.get("allergy_count", 0)
 
@@ -119,23 +120,23 @@ def show_home_page():
 
     col1, col2, col3 = st.columns(3)
 
+    # Değişiklik burada: Meal Plan kartı, Favoriler kartı olarak değiştirildi
     with col1:
         st.markdown(
             f"""
             <div class="dashboard-card">
-                <div class="dashboard-icon" style="color: #FF9800; font-size: 28px;">
-                    <i class="fa-solid fa-utensils"></i>
+                <div class="dashboard-icon" style="color: #FF4B4B; font-size: 28px;">
+                    <i class="fa-solid fa-heart"></i>
                 </div>
-                <div class="dashboard-title">Meal Plan</div>
-                <div class="dashboard-value" style="color: #FF9800;">{meal_plan_count}</div>
-                <div class="step-text">saved meal items</div>
+                <div class="dashboard-title">Favorites</div>
+                <div class="dashboard-value" style="color: #FF4B4B;">{favorite_count}</div>
+                <div class="step-text">saved recipes</div>
             </div>
         """,
             unsafe_allow_html=True,
         )
 
     with col2:
-        # Envanter için basit bir doluluk barı (örneğin mutfakta ortalama 20 malzeme olsun)
         inventory_percentage = (
             min((inventory_count / 20) * 100, 100) if inventory_count else 0
         )

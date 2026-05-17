@@ -63,7 +63,15 @@ else:
                 with col_meal:
                     selected_meal = st.selectbox(
                         "Meal",
-                        ["Breakfast", "Lunch", "Dinner"],
+                        [
+                            "Breakfast",
+                            "Lunch",
+                            "Dinner",
+                            "Soup",
+                            "Desert",
+                            "Salad",
+                            "Drink",
+                        ],
                         key=f"meal_{recipe['recipe_id']}",
                     )
 
