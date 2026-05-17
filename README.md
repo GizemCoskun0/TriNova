@@ -131,13 +131,3 @@ Tip: store secrets securely in CI/CD or platform-specific secret stores for prod
 - Routers & services: [Backend/routers/](Backend/routers/), [Backend/services/](Backend/services/)
 - DB initialization: [Backend/init_db.py](Backend/init_db.py)
 
----
-
-If you'd like, I can also:
-
-- add a `requirements.txt` for both backend and frontend,
-- add a startup script or Dockerfile, or
-- draft contributing guidelines and issue templates for the repo.
-
-Happy to proceed with any of the above — which would you like next?
-
