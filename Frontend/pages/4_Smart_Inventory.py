@@ -12,7 +12,7 @@ require_login()
 USERNAME = st.session_state.username
 EMAIL = st.session_state.email
 
-# --- API URL'LERİ ---
+
 API_URL = "http://localhost:8000/api/inventory"
 API_ANALYZE_URL = "http://localhost:8000/api/analyze-image"
 API_FAVORITES = "http://localhost:8000/api/favorites"
@@ -32,7 +32,7 @@ if "username" in st.session_state:
 else:
     USERNAME = st.sidebar.text_input("Username", value="merve_gunes")
 
-# --- SESSION STATE TANIMLAMALARI (UI KAYBOLMAMASI İÇİN) ---
+
 if "show_recipes" not in st.session_state:
     st.session_state.show_recipes = False
 if "fetched_recipes" not in st.session_state:
@@ -120,7 +120,8 @@ with col1:
         st.session_state.detected_items_list = []
 
     if picture:
-        st.image(picture, caption="Selected Image", use_container_width=True)
+        st.image(picture, caption="Selected Image", width=300)
+    
         if st.button("🔍 Analyze with AI"):
             with st.spinner("AI is analyzing the image..."):
 
@@ -190,7 +191,7 @@ with col2:
             res = add_item(clean_name, amount=item_qty)
             
             if res.get("status") == "success":
-                # BACKEND'DEN GELEN MESAJI EKRANA BASIYORUZ
+                
                 backend_message = res.get("message", "Item added!")
                 st.toast(f"✅ {item_qty}x {backend_message}")
 
@@ -225,16 +226,18 @@ with col2:
     if not inventory_items:
         st.write("Your kitchen is empty. Start adding some items!")
     else:
-        for item in inventory_items:
-            c1, c2 = st.columns([4, 1])
-            c1.write(f"🧀 **{item['name']}** ({item['amount']} {item['unit']})")
+        with st.container(height=300):
+            
+            for item in inventory_items:
+                c1, c2 = st.columns([4, 1])
+                c1.write(f"🧀 **{item['name']}** ({item['amount']} {item['unit']})")
 
-            if c2.button("🗑️", key=f"del_{item['id']}"):
-                delete_item(item["id"])
-                st.rerun()
+                if c2.button("🗑️", key=f"del_{item['id']}"):
+                    delete_item(item["id"])
+                    st.rerun()
 
 st.divider()
-# --- SADECE API İSTEĞİNİ YAPAN BUTON ---
+
 if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True):
     inventory_items = fetch_inventory()
 
@@ -255,7 +258,7 @@ if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True
                     params={
                         "ingredients": ingredients_str,
                         "username": aktif_kullanici,
-                        "number": 5,  # <-- Smart Inventory için tam 5 tarif istiyoruz
+                        "number": 5,  
                     },
                 )
 
@@ -264,7 +267,7 @@ if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True
                     if data.get("status") == "success":
                         st.session_state.fetched_recipes = data.get("data", [])
                         st.session_state.show_recipes = (
-                            True  # Tarifleri göstermek için tetikleyiciyi açtık
+                            True  
                         )
                     else:
                         st.error(f"API Error: {data.get('message')}")
@@ -273,7 +276,7 @@ if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True
             except Exception as e:
                 st.error(f"Connection error: {e}")
 
-# --- 2. TARİFLERİ SESSION STATE'TEN OKUYUP ÇİZEN KISIM ---
+
 if st.session_state.show_recipes:
     recipes = st.session_state.fetched_recipes
 
@@ -287,7 +290,7 @@ if st.session_state.show_recipes:
                 with col_img:
                     st.image(recipe["image"], use_container_width=True)
 
-                    # --- SENİN İSTEDİĞİN DİNAMİK FAVORİ BUTONU ---
+                    
                     is_fav = int(recipe["id"]) in user_favorites
                     button_label = "❤️ In Favorite" if is_fav else "🤍 Add to Favorite"
 
@@ -328,7 +331,7 @@ if st.session_state.show_recipes:
 
                     raw_instr = recipe.get("instructions")
 
-                    # Eğer ana alan boşsa, Spoonacular'ın yedek kulübesine (analyzedInstructions) bakıyoruz
+                    
                     if not raw_instr or raw_instr == "":
                         analyzed = recipe.get("analyzedInstructions", [])
                         if analyzed and len(analyzed) > 0:
@@ -338,10 +341,10 @@ if st.session_state.show_recipes:
                                 [f"{s['number']}. {s['step']}" for s in steps]
                             )
 
-                    # Şimdi ekrana basma kısmına geçiyoruz (Senin orijinal yapın)
+                    
                     if raw_instr:
                         with st.expander("👨‍🍳 How to Cook (Instructions)"):
-                            # Artık içi dolu olan 'raw_instr' değişkenini kullanıyoruz
+                            
                             st.write(raw_instr, unsafe_allow_html=True)
                     else:
                         st.info(
@@ -382,7 +385,7 @@ if st.session_state.show_recipes:
                                 st.rerun()
                     else:
                         st.success("🎉 You have all the ingredients at home!")
-            # --------------------------------------
+            
 
     else:
         st.warning("No recipes found with these specific ingredients.")

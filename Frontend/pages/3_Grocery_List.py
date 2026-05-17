@@ -1,5 +1,7 @@
 import streamlit as st
 import requests
+import streamlit as st
+
 
 st.set_page_config(
     page_title="Grocery List", layout="wide", initial_sidebar_state="collapsed"
@@ -19,8 +21,10 @@ API_RECALCULATE_SHOPPING_LIST = (
     f"http://localhost:8000/api/shopping-list/recalculate/{EMAIL}"
 )
 
-st.title("🛒 My Grocery List")
-st.write("Here you can see your home inventory and the items you need to buy.")
+
+st.title("Smart Grocery List 🛒 ")
+st.write("Manage your home inventory and track the items you need to buy. ✨")
+st.divider()
 
 
 def toggle_item(item_id, current_status):
@@ -82,46 +86,46 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("🏠 Currently at Home")
-    if home_items:
-        for item in home_items:
-            name = item.get("name", "")
-            amount = item.get("amount", "")
-            unit = item.get("unit", "")
-            st.info(f"✅ {name}: {amount} {unit}")
-    else:
-        st.info("No items found in your inventory.")
+    with st.container(height=350):
+        if home_items:
+            for item in home_items:
+                name = item.get("name", "")
+                amount = item.get("amount", "")
+                unit = item.get("unit", "")
+                st.info(f"✅ {name}: {amount} {unit}")
+        else:
+            st.info("No items found in your inventory.")
 
 with col2:
     st.subheader("🛒 Items To Buy")
-    if shopping_items:
-        for item in shopping_items:
-            item_name = item.get("item_name", "")
-            amount = item.get("amount", "")
-            unit = item.get("unit", "")
-            is_checked = item.get("is_checked", False)
-            item_id = item.get("id")
+    with st.container(height=350):
+        if shopping_items:
+            for item in shopping_items:
+                item_name = item.get("item_name", "")
+                amount = item.get("amount", "")
+                unit = item.get("unit", "")
+                is_checked = item.get("is_checked", False)
+                item_id = item.get("id")
 
-            st.checkbox(
-                f"{amount} {unit} {item_name}",
-                value=is_checked,
-                key=f"shopping_item_{item_id}",
-                on_change=toggle_item,
-                args=(item_id, is_checked),
-            )
+                st.checkbox(
+                    f"{amount} {unit} {item_name}",
+                    value=is_checked,
+                    key=f"shopping_item_{item_id}",
+                    on_change=toggle_item,
+                    args=(item_id, is_checked),
+                )
 
-        if any(item.get("is_checked") for item in shopping_items):
-            st.write("")  # Boşluk
-            if st.button("🗑️ Clear Purchased Items", use_container_width=True):
-                clear_checked_items()
-                st.rerun()
-    else:
-        st.success("Your shopping list is empty. 🥳")
-
+            if any(item.get("is_checked") for item in shopping_items):
+                st.write("")  # Boşluk
+                if st.button("🗑️ Clear Purchased Items", use_container_width=True):
+                    clear_checked_items()
+                    st.rerun()
+        else:
+            st.success("Your shopping list is empty. 🥳")
 
 
 st.divider()
 
-# PDF İndirme Butonu Bölümü
 try:
     API_PDF_URL = f"http://localhost:8000/api/shopping-list/{EMAIL}/pdf"
     pdf_response = requests.get(API_PDF_URL)
