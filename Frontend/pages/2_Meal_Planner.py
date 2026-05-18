@@ -79,17 +79,7 @@ st.write(
 )
 st.divider()
 
-st.subheader("📌 Plan Summary")
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("User", USERNAME)
-col2.metric("Diet", current_diet)
-col3.metric("Allergies", str(len(current_allergies)))
-col4.metric("Inventory Items", inventory_count)
 
-st.caption(
-    "Allergies: " + (", ".join(current_allergies) if current_allergies else "None")
-)
-st.divider()
 
 st.subheader("⚙️ Meal Plan Actions")
 

@@ -22,7 +22,7 @@ if username == "":
 API_URL_POST = "http://localhost:8000/api/profile"
 API_URL_GET = f"http://localhost:8000/api/profile/{username}"
 
-st.title("👤 User Profile")
+st.title("Profile")
 st.write("Your dietary preferences and allergies will be collected here.")
 
 current_email = email

@@ -47,24 +47,7 @@ def clear_checked_items():
         st.error("Backend connection error!")
 
 
-if st.button("🔄 Recalculate Shopping List", use_container_width=True):
-    try:
-        response = requests.post(API_RECALCULATE_SHOPPING_LIST)
 
-        if response.status_code == 200:
-            data = response.json()
-
-            if data.get("status") == "success":
-                st.success("✅ Shopping list recalculated successfully!")
-                st.rerun()
-            else:
-                st.error(data.get("message", "Failed to recalculate shopping list."))
-        else:
-            st.error("Backend Error: Failed to recalculate shopping list.")
-            st.write(response.text)
-
-    except Exception:
-        st.error("🚨 CONNECTION ERROR: Backend is not running.")
 
 home_items = []
 try:
