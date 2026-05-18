@@ -1,15 +1,23 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel # 🚀 Şifre değiştirme modeli için eklendi
 
 import models
 from database import get_db
 from schemas import ProfileCreate
 
+# 🚀 Frontend'den gelen şifre değiştirme paketini karşılayacak şema
+class PasswordChangeRequest(BaseModel):
+    username: str
+    current_password: str
+    new_password: str
 
 router = APIRouter(
     prefix="/api",
     tags=["Profile"]
 )
+
+# --- VAR OLAN KOD (HİÇ DOKUNULMADI) ---
 
 @router.post("/profile")
 def save_profile(profile: ProfileCreate, db: Session = Depends(get_db)):
@@ -54,6 +62,7 @@ def save_profile(profile: ProfileCreate, db: Session = Depends(get_db)):
             "saved_allergies": profile.allergies
         }
     }
+
 # Bu fonksiyon, Streamlit her açıldığında veritabanındaki kayıtları okur
 @router.get("/profile/{username}")
 def get_profile(username: str, db: Session = Depends(get_db)):
@@ -72,3 +81,26 @@ def get_profile(username: str, db: Session = Depends(get_db)):
         "diet": diet,
         "allergies": allergies
     }
+
+# --- 🚀 YENİ EKLENEN ŞİFRE DEĞİŞTİRME FONKSİYONU ---
+
+@router.put("/profile/change-password")
+def change_password(request: PasswordChangeRequest, db: Session = Depends(get_db)):
+    # 1. Kullanıcıyı veritabanında buluyoruz
+    db_user = db.query(models.User).filter(models.User.username == request.username).first()
+    
+    if not db_user:
+        return {"status": "error", "message": "User not found"}
+
+    # 2. Mevcut şifre kontrolü 
+    # Not: Eğer projede passlib ile hashleme yapıyorsan burayı verify_password ile değiştirmen gerekir.
+    # Şimdilik standart "password" kolonu üzerinden düz eşleştirme yapıyoruz.
+    if getattr(db_user, 'password', None) != request.current_password:
+        return {"status": "error", "message": "Incorrect current password."}
+
+    # 3. Yeni şifreyi kaydetme
+    # Not: Eğer hashleme varsa: db_user.password = get_password_hash(request.new_password)
+    db_user.password = request.new_password
+    db.commit()
+
+    return {"status": "success", "message": "Password changed successfully"}

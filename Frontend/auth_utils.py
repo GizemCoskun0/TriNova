@@ -133,3 +133,30 @@ def require_login():
     if not is_logged_in:
         st.warning("🚨 Please login from the main page first!")
         st.stop()
+
+    st.markdown("""
+        <style>
+            /* 1. Menünün ana çerçevesini ekranın altına kadar zorla uzatır */
+            [data-testid="stSidebarNav"] {
+                min-height: 85vh !important; 
+                display: flex !important;
+                flex-direction: column !important;
+            }
+            
+            /* 2. İçindeki listeyi tüm boşluğu kaplayacak şekilde esnetir */
+            [data-testid="stSidebarNavItems"] {
+                display: flex !important;
+                flex-direction: column !important;
+                flex-grow: 1 !important; 
+            }
+            
+            /* 3. En sondaki sayfayı (Settings) zorla en dibe fırlatır */
+            [data-testid="stSidebarNavItems"] > li:last-child {
+                margin-top: auto !important;
+                padding-top: 15px !important;
+                margin-bottom: 15px !important;
+                border-top: 1px solid rgba(128, 128, 128, 0.3) !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+     
