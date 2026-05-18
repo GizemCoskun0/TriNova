@@ -236,7 +236,7 @@ This project was built with ❤️ and collaboration by an amazing team of devel
 | Developer | Role / Contribution | GitHub |
 | :--- | :--- | :--- |
 | **Gizem Coşkun** | Full-Stack & UI Core | [@GizemCoskun0](https://github.com/GizemCoskun0) |
-| **Merve Güneş** | AI Integration & Routing  | [@Mervegunes00]((https://github.com/Mervegunes00)) |
-| **Beyza Birben** | Backend & Database Design | [@BeyzaBirben]((https://github.com/BeyzaBirben)) |
+| **Merve Güneş** | AI Integration & Routing  | [@Mervegunes00](https://github.com/Mervegunes00) |
+| **Beyza Birben** | Backend & Database Design | [@BeyzaBirben](https://github.com/BeyzaBirben) |
 
 ---
