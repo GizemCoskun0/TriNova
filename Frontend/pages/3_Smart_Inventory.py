@@ -20,17 +20,11 @@ API_ADD_SINGLE = "http://localhost:8000/api/meal-plan/add-single"
 
 st.title("📸 Smart Kitchen Inventory")
 st.write(
-    "Manage your ingredients using AI camera or manual entry. (Connected to Database 🚀)"
+    "Manage your ingredients using AI camera or manual entry. "
 )
 st.divider()
 
-st.sidebar.subheader("👤 Active User")
 
-if "username" in st.session_state:
-    USERNAME = st.session_state["username"]
-    st.sidebar.success(f"Logged in as: {USERNAME}")
-else:
-    USERNAME = st.sidebar.text_input("Username", value="merve_gunes")
 
 
 if "show_recipes" not in st.session_state:
@@ -174,7 +168,7 @@ with col1:
                 )
 
 with col2:
-    st.subheader("✍️ Manual Add & Current Stock")
+    st.subheader(" Manual Add & Current Stock")
 
     if "new_ingredient_name" not in st.session_state:
         st.session_state.new_ingredient_name = ""
@@ -238,7 +232,7 @@ with col2:
 
 st.divider()
 
-if st.button("🍳 Get Recipes with These Ingredients", use_container_width=True):
+if st.button("What Can I Cook with These Ingredients", use_container_width=True):
     inventory_items = fetch_inventory()
 
     if not inventory_items:
