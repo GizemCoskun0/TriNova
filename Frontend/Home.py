@@ -7,9 +7,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# Home.py dosyanın üst kısımlarına (set_page_config'in altına) bunu ekle:
-
-st.markdown("""
+st.markdown(
+    """
     <style>
         [data-testid="stSidebarNav"] {
             min-height: 85vh !important; 
@@ -28,7 +27,9 @@ st.markdown("""
             border-top: 1px solid rgba(128, 128, 128, 0.3) !important;
         }
     </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 from auth_utils import init_session_state, restore_login_from_cookie
 

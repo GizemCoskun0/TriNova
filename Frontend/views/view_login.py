@@ -1,7 +1,15 @@
 import streamlit as st
+import re
 from auth_utils import set_login_cookie, clear_login_cookie
 from user_db import register_user, check_login
 from home_styles import hide_sidebar
+
+
+def is_valid_email(email):
+    pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+    if re.match(pattern, email):
+        return True
+    return False
 
 
 def show_login_page():
@@ -102,12 +110,16 @@ def show_login_page():
                 or confirm_password == ""
             ):
                 st.warning("Please fill in all fields.")
-            elif "@" not in register_email:
-                st.warning("Please enter a valid email address.")
+
+            elif not is_valid_email(register_email):
+                st.warning(
+                    "Please enter a valid email address. (e.g., user@example.com)"
+                )
+
             elif register_password != confirm_password:
                 st.error("Passwords do not match!")
-            elif len(register_password) < 4:
-                st.warning("Password must be at least 4 characters.")
+            elif len(register_password) < 6:
+                st.warning("Password must be at least 6 characters.")
             else:
                 result = register_user(
                     register_username, register_email, register_password
@@ -116,4 +128,4 @@ def show_login_page():
                 if result:
                     st.success("Registration successful! You can now login.")
                 else:
-                    st.error("This username or email is already registered.")
+                    st.error("This email is already registered.")

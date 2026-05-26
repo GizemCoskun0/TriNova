@@ -4,26 +4,30 @@ from sqlalchemy.orm import Session
 import models
 from database import get_db
 from schemas import InventoryItem
-from schemas import MealPlanItemRequest,ItemToggleRequest
+from schemas import MealPlanItemRequest, ItemToggleRequest
 from services.ingredient_service import compare_recipe_with_inventory
 from services.fuzzy_service import correct_ingredient_name
 
-router = APIRouter(
-    prefix="/api",
-    tags=["Inventory"]
-)
+router = APIRouter(prefix="/api", tags=["Inventory"])
+
 
 @router.get("/inventory/{username}")
 def get_inventory(username: str, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == username).first()
     if not user:
-        return {"status": "error", "message": "User not found. Please create a profile first."}
-    
+        return {
+            "status": "error",
+            "message": "User not found. Please create a profile first.",
+        }
+
     items = db.query(models.Inventory).filter(models.Inventory.user_id == user.id).all()
-    
+
     return {
-        "status": "success", 
-        "data": [{"id": i.id, "name": i.name, "amount": i.amount, "unit": i.unit} for i in items]
+        "status": "success",
+        "data": [
+            {"id": i.id, "name": i.name, "amount": i.amount, "unit": i.unit}
+            for i in items
+        ],
     }
 
 
@@ -32,51 +36,58 @@ def add_inventory(item: InventoryItem, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == item.username).first()
     if not user:
         return {"status": "error", "message": "User not found."}
-    
+
     user_email = user.email
-    
+
     # --- FUZZY MATCHING (AKILLI KELİME DÜZELTME) ---
     original_name = item.item_name
     corrected_name, is_corrected = correct_ingredient_name(original_name)
-    
-    item.item_name = corrected_name 
+
+    item.item_name = corrected_name
     # -----------------------------------------------------
 
-    existing_item = db.query(models.Inventory).filter(
-        models.Inventory.user_id == user.id, 
-        models.Inventory.name == item.item_name
-    ).first()
-    
+    existing_item = (
+        db.query(models.Inventory)
+        .filter(
+            models.Inventory.user_id == user.id, models.Inventory.name == item.item_name
+        )
+        .first()
+    )
+
     if existing_item:
         existing_item.amount += item.amount
         db.commit()
     else:
-        new_item = models.Inventory(user_id=user.id, name=item.item_name, amount=item.amount, unit=item.unit)
+        new_item = models.Inventory(
+            user_id=user.id, name=item.item_name, amount=item.amount, unit=item.unit
+        )
         db.add(new_item)
         db.commit()
-    
 
-    shopping_item = db.query(models.ShoppingListItem).filter(
-        models.ShoppingListItem.user_email == user_email,
-        models.ShoppingListItem.item_name.ilike(item.item_name),
-        models.ShoppingListItem.is_checked == False
-    ).first()
-    
+    shopping_item = (
+        db.query(models.ShoppingListItem)
+        .filter(
+            models.ShoppingListItem.user_email == user_email,
+            models.ShoppingListItem.item_name.ilike(item.item_name),
+            models.ShoppingListItem.is_checked == False,
+        )
+        .first()
+    )
+
     if shopping_item:
         shopping_item.amount -= item.amount
-        
+
         if shopping_item.amount <= 0:
             db.delete(shopping_item)
     db.commit()
-    
+
     # Eğer sistem bir düzeltme yaptıysa, kullanıcıya bunu haber verir
     if is_corrected:
         message = f"✨ Auto-corrected '{original_name}' to '{corrected_name}' and added to inventory!"
     else:
         message = f"'{item.item_name}' added to the inventory!"
-        
-    return {"status": "success", "message": message}
 
+    return {"status": "success", "message": message}
 
 
 @router.delete("/inventory/{item_id}")
@@ -84,7 +95,7 @@ def delete_inventory(item_id: int, db: Session = Depends(get_db)):
     item = db.query(models.Inventory).filter(models.Inventory.id == item_id).first()
     if not item:
         return {"status": "error", "message": "Item not found."}
-        
+
     db.delete(item)
     db.commit()
     return {"status": "success", "message": "Item deleted successfully!"}
@@ -96,14 +107,13 @@ def get_shopping_list(email: str, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == email).first()
 
     if not db_user:
-        return {
-            "status": "error",
-            "message": "User not found."
-        }
+        return {"status": "error", "message": "User not found."}
 
-    shopping_items = db.query(models.ShoppingListItem).filter(
-        models.ShoppingListItem.user_email == email
-    ).all()
+    shopping_items = (
+        db.query(models.ShoppingListItem)
+        .filter(models.ShoppingListItem.user_email == email)
+        .all()
+    )
 
     return {
         "status": "success",
@@ -114,46 +124,49 @@ def get_shopping_list(email: str, db: Session = Depends(get_db)):
                 "amount": item.amount,
                 "unit": item.unit,
                 "source_recipe_title": item.source_recipe_title,
-                "is_checked": item.is_checked
+                "is_checked": item.is_checked,
             }
             for item in shopping_items
-        ]
+        ],
     }
 
+
 @router.post("/shopping-list/add-missing")
-def add_missing_items_to_shopping_list(request: MealPlanItemRequest, db: Session = Depends(get_db)):
+def add_missing_items_to_shopping_list(
+    request: MealPlanItemRequest, db: Session = Depends(get_db)
+):
 
     db_user = db.query(models.User).filter(models.User.email == request.email).first()
 
     if not db_user:
-        return {
-            "status": "error",
-            "message": "User not found."
-        }
+        return {"status": "error", "message": "User not found."}
 
-    meal_plan_item = db.query(models.MealPlan).filter(
-        models.MealPlan.id == request.meal_plan_id,
-        models.MealPlan.user_email == request.email
-    ).first()
+    meal_plan_item = (
+        db.query(models.MealPlan)
+        .filter(
+            models.MealPlan.id == request.meal_plan_id,
+            models.MealPlan.user_email == request.email,
+        )
+        .first()
+    )
 
     if not meal_plan_item:
-        return {
-            "status": "error",
-            "message": "Meal plan item not found."
-        }
+        return {"status": "error", "message": "Meal plan item not found."}
 
     available_items, missing_items = compare_recipe_with_inventory(
-        meal_plan_item,
-        db_user,
-        db
+        meal_plan_item, db_user, db
     )
 
     for item in missing_items:
-        existing_item = db.query(models.ShoppingListItem).filter(
-            models.ShoppingListItem.user_email == request.email,
-            models.ShoppingListItem.item_name == item["name"],
-            models.ShoppingListItem.is_checked == False
-        ).first()
+        existing_item = (
+            db.query(models.ShoppingListItem)
+            .filter(
+                models.ShoppingListItem.user_email == request.email,
+                models.ShoppingListItem.item_name == item["name"],
+                models.ShoppingListItem.is_checked == False,
+            )
+            .first()
+        )
 
         if existing_item:
             existing_item.amount += item["amount"]
@@ -165,7 +178,7 @@ def add_missing_items_to_shopping_list(request: MealPlanItemRequest, db: Session
                 amount=item["amount"],
                 unit=item["unit"],
                 source_recipe_title=meal_plan_item.recipe_title,
-                is_checked=False
+                is_checked=False,
             )
 
             db.add(new_item)
@@ -175,42 +188,47 @@ def add_missing_items_to_shopping_list(request: MealPlanItemRequest, db: Session
     return {
         "status": "success",
         "message": "Missing ingredients added to the shopping list.",
-        "added_items": missing_items
+        "added_items": missing_items,
     }
 
+
 @router.put("/shopping-list/toggle/{item_id}")
-def toggle_shopping_item(item_id: int, request: ItemToggleRequest, db: Session = Depends(get_db)):
-    item = db.query(models.ShoppingListItem).filter(models.ShoppingListItem.id == item_id).first()
+def toggle_shopping_item(
+    item_id: int, request: ItemToggleRequest, db: Session = Depends(get_db)
+):
+    item = (
+        db.query(models.ShoppingListItem)
+        .filter(models.ShoppingListItem.id == item_id)
+        .first()
+    )
     if item:
         item.is_checked = request.is_checked
         db.commit()
         return {"status": "success"}
     return {"status": "error", "message": "Item not found"}
 
+
 @router.post("/shopping-list/recalculate/{email}")
 def recalculate_shopping_list(email: str, db: Session = Depends(get_db)):
 
-    db_user = db.query(models.User).filter(
-        models.User.email == email
-    ).first()
+    db_user = db.query(models.User).filter(models.User.email == email).first()
 
     if not db_user:
-        return {
-            "status": "error",
-            "message": "User not found."
-        }
+        return {"status": "error", "message": "User not found."}
 
-    shopping_items = db.query(models.ShoppingListItem).filter(
-        models.ShoppingListItem.user_email == email
-    ).all()
+    shopping_items = (
+        db.query(models.ShoppingListItem)
+        .filter(models.ShoppingListItem.user_email == email)
+        .all()
+    )
 
-    inventory_items = db.query(models.Inventory).filter(
-        models.Inventory.user_id == db_user.id
-    ).all()
+    inventory_items = (
+        db.query(models.Inventory).filter(models.Inventory.user_id == db_user.id).all()
+    )
 
     for shop_item in shopping_items:
         total_inv_amount = 0
-        
+
         # Sum all matching inventory items for this shopping item
         for inv_item in inventory_items:
             inventory_name = inv_item.name.lower().strip()
@@ -218,7 +236,7 @@ def recalculate_shopping_list(email: str, db: Session = Depends(get_db)):
 
             if inventory_name in shopping_name or shopping_name in inventory_name:
                 total_inv_amount += inv_item.amount
-        
+
         if total_inv_amount > 0:
             shop_item.amount = shop_item.amount - total_inv_amount
             if shop_item.amount <= 0:
@@ -226,9 +244,11 @@ def recalculate_shopping_list(email: str, db: Session = Depends(get_db)):
 
     db.commit()
 
-    updated_items = db.query(models.ShoppingListItem).filter(
-        models.ShoppingListItem.user_email == email
-    ).all()
+    updated_items = (
+        db.query(models.ShoppingListItem)
+        .filter(models.ShoppingListItem.user_email == email)
+        .all()
+    )
 
     return {
         "status": "success",
@@ -240,42 +260,51 @@ def recalculate_shopping_list(email: str, db: Session = Depends(get_db)):
                 "amount": item.amount,
                 "unit": item.unit,
                 "source_recipe_title": item.source_recipe_title,
-                "is_checked": item.is_checked
+                "is_checked": item.is_checked,
             }
             for item in updated_items
-        ]
+        ],
     }
+
 
 @router.delete("/shopping-list/clear/{email}")
 def clear_checked_items(email: str, db: Session = Depends(get_db)):
-    
+
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user:
         return {"status": "error", "message": "User not found"}
 
-    checked_items = db.query(models.ShoppingListItem).filter(
-        models.ShoppingListItem.user_email == email,
-        models.ShoppingListItem.is_checked == True
-    ).all()
+    checked_items = (
+        db.query(models.ShoppingListItem)
+        .filter(
+            models.ShoppingListItem.user_email == email,
+            models.ShoppingListItem.is_checked == True,
+        )
+        .all()
+    )
 
     for item in checked_items:
-        existing_inv_item = db.query(models.Inventory).filter(
-            models.Inventory.user_id == user.id,
-            models.Inventory.name == item.item_name
-        ).first()
+        existing_inv_item = (
+            db.query(models.Inventory)
+            .filter(
+                models.Inventory.user_id == user.id,
+                models.Inventory.name == item.item_name,
+            )
+            .first()
+        )
 
         if existing_inv_item:
             existing_inv_item.amount += item.amount
         else:
             new_inv_item = models.Inventory(
-                user_id=user.id,
-                name=item.item_name,
-                amount=item.amount,
-                unit=item.unit
+                user_id=user.id, name=item.item_name, amount=item.amount, unit=item.unit
             )
             db.add(new_inv_item)
 
         db.delete(item)
 
     db.commit()
-    return {"status": "success", "message": "Items successfully moved to inventory and removed from shopping list."}
+    return {
+        "status": "success",
+        "message": "Items successfully moved to inventory and removed from shopping list.",
+    }

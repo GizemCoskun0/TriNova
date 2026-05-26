@@ -1,4 +1,14 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Table, Text, DateTime, Boolean
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Float,
+    ForeignKey,
+    Table,
+    Text,
+    DateTime,
+    Boolean,
+)
 from datetime import datetime
 from sqlalchemy.orm import relationship
 from database import Base
@@ -17,18 +27,22 @@ user_diets = Table(
     Column("diet_id", Integer, ForeignKey("diets.id")),
 )
 
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)
+    username = Column(String, unique=False, index=True)
     email = Column(String, unique=True, index=True)
     password = Column(String)
 
     inventory_items = relationship("Inventory", back_populates="owner")
-    allergies = relationship("Allergy", secondary=user_allergies, back_populates="users")
+    allergies = relationship(
+        "Allergy", secondary=user_allergies, back_populates="users"
+    )
     diets = relationship("Diet", secondary=user_diets, back_populates="users")
 
     meal_plans = relationship("MealPlan", back_populates="owner")
+
 
 class Inventory(Base):
     __tablename__ = "inventory"
@@ -37,8 +51,9 @@ class Inventory(Base):
     name = Column(String, index=True)
     amount = Column(Float, default=1.0)
     unit = Column(String, default="unit")
-    
+
     owner = relationship("User", back_populates="inventory_items")
+
 
 class Allergy(Base):
     __tablename__ = "allergies"
@@ -46,11 +61,13 @@ class Allergy(Base):
     name = Column(String, unique=True)
     users = relationship("User", secondary=user_allergies, back_populates="allergies")
 
+
 class Diet(Base):
     __tablename__ = "diets"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True)
     users = relationship("User", secondary=user_diets, back_populates="diets")
+
 
 class MealPlan(Base):
     __tablename__ = "meal_plans"
@@ -75,6 +92,8 @@ class MealPlan(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     owner = relationship("User", back_populates="meal_plans")
+
+
 class ShoppingListItem(Base):
     __tablename__ = "shopping_list_items"
 
@@ -90,7 +109,8 @@ class ShoppingListItem(Base):
     source_recipe_title = Column(String)
     is_checked = Column(Boolean, default=False)
 
-    created_at = Column(DateTime, default=datetime.utcnow)    
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 
 class FavoriteRecipe(Base):
     __tablename__ = "favorite_recipes"
@@ -102,4 +122,4 @@ class FavoriteRecipe(Base):
     recipe_image = Column(String)
     source_url = Column(String)
     ingredients = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)    
+    created_at = Column(DateTime, default=datetime.utcnow)

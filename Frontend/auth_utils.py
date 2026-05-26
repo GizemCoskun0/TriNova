@@ -5,13 +5,11 @@ from pathlib import Path
 import streamlit as st
 from streamlit_cookies_controller import CookieController
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "Backend" / "smartkitchen.db"
 
 AUTH_COOKIE = "smartkitchen_user_email"
 
-# CookieController sadece 1 kere oluşturuluyor
 cookie_controller = CookieController(key="auth_cookie_manager")
 
 
@@ -23,11 +21,14 @@ def get_user_by_email(email):
     conn = create_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT id, username, email
         FROM users
         WHERE email = ?
-    """, (email,))
+    """,
+        (email,),
+    )
 
     user = cursor.fetchone()
     conn.close()
@@ -54,37 +55,23 @@ def init_session_state():
     if "manual_logout" not in st.session_state:
         st.session_state.manual_logout = False
     if "auth_view" not in st.session_state:
-        st.session_state.auth_view = "landing"    
+        st.session_state.auth_view = "landing"
 
 
 def set_login_cookie(email):
     cookie_controller.set(
-        AUTH_COOKIE,
-        email,
-        path="/",
-        max_age=60 * 60 * 24 * 7,
-        same_site="lax"
+        AUTH_COOKIE, email, path="/", max_age=60 * 60 * 24 * 7, same_site="lax"
     )
 
     time.sleep(0.7)
 
 
 def clear_login_cookie():
-    cookie_controller.set(
-        AUTH_COOKIE,
-        "",
-        path="/",
-        max_age=0,
-        same_site="lax"
-    )
+    cookie_controller.set(AUTH_COOKIE, "", path="/", max_age=0, same_site="lax")
 
     time.sleep(0.3)
 
-    cookie_controller.remove(
-        AUTH_COOKIE,
-        path="/",
-        same_site="lax"
-    )
+    cookie_controller.remove(AUTH_COOKIE, path="/", same_site="lax")
 
     time.sleep(0.7)
 
@@ -134,7 +121,8 @@ def require_login():
         st.warning("🚨 Please login from the main page first!")
         st.stop()
 
-    st.markdown("""
+    st.markdown(
+        """
         <style>
             /* 1. Menünün ana çerçevesini ekranın altına kadar zorla uzatır */
             [data-testid="stSidebarNav"] {
@@ -158,5 +146,6 @@ def require_login():
                 border-top: 1px solid rgba(128, 128, 128, 0.3) !important;
             }
         </style>
-    """, unsafe_allow_html=True)
-     
+    """,
+        unsafe_allow_html=True,
+    )

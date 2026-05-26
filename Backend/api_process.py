@@ -20,9 +20,9 @@ class AsyncRecipeAPI:
 
         params = {
             "includeIngredients": ingredients_str,
-            "number": 15,  # 🚀 BİLEREK FAZLA ÇEKİYORUZ (İçinden en iyileri seçeceğiz)
-            "sort": "min-missing-ingredients",  # 🚀 HEDEF: Markete en az gönderen tarif
-            "ignorePantry": "true",  # 🚀 Tuz, yağ, su gibi temel malzemeleri eksik sayma!
+            "number": 15,
+            "sort": "min-missing-ingredients",
+            "ignorePantry": "true",
             "instructionsRequired": "true",
             "addRecipeInformation": "true",
             "fillIngredients": "true",
@@ -41,13 +41,10 @@ class AsyncRecipeAPI:
                         data = await response.json()
                         results = data.get("results", [])
 
-                        # 🚀 PYTHON İLE ZEKİ SIRALAMA:
-                        # Eksik malzeme sayısı (missedIngredientCount) EN AZ olanları en üste al
                         sorted_results = sorted(
                             results, key=lambda x: x.get("missedIngredientCount", 99)
                         )
 
-                        # Sadece en eksiksiz olan "number" (5) kadarını döndür
                         return sorted_results[:number]
 
                     return None
@@ -55,14 +52,13 @@ class AsyncRecipeAPI:
                 print(f"Connection error occurred: {e}")
                 return None
 
-    # 2. YETENEK: MEAL PLANNER İÇİN (Rastgele + Filtreli)
     @staticmethod
     async def get_random_meal_plan(diets=None, allergies=None, number=9):
         endpoint = f"{BASE_URL}/complexSearch"
 
         params = {
-            "sort": "random",  # 🚀 Her seferinde farklı tarifler gelmesini sağlayan satır
-            "number": number,  # 🚀 Eksik olan tarif sayısı limiti
+            "sort": "random",
+            "number": number,
             "instructionsRequired": "true",
             "addRecipeInformation": "true",
             "fillIngredients": "true",
@@ -96,14 +92,13 @@ class AsyncRecipeAPI:
             "number": number,
             "addRecipeInformation": "true",
             "fillIngredients": "true",
-            "instructionsRequired": "true"
+            "instructionsRequired": "true",
         }
         if diets:
             params["diet"] = ",".join(diets)
         if allergies:
             params["intolerances"] = ",".join(allergies)
 
-        # 🌟 SİHİRLİ DOKUNUŞ: Eğer dışarıdan ekstra parametre (excludeIngredients vb.) gelirse params'a ekle
         if kwargs:
             params.update(kwargs)
 

@@ -22,10 +22,9 @@ from services.recipe_filter_service import recipe_matches_user_preferences
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer,PageBreak
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, PageBreak
 
 router = APIRouter(prefix="/api", tags=["Meal Plan"])
-
 
 
 @router.post("/meal-plan/auto-generate")
@@ -367,8 +366,6 @@ async def generate_category_plan(
     return {"status": "success", "data": recipes}
 
 
-
-
 @router.get("/meal-plan/{email}/pdf")
 def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == email).first()
@@ -377,9 +374,7 @@ def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
 
     # Veritabanından verileri çekiyoruz
     raw_items = (
-        db.query(models.MealPlan)
-        .filter(models.MealPlan.user_email == email)
-        .all()
+        db.query(models.MealPlan).filter(models.MealPlan.user_email == email).all()
     )
 
     # --- GÜNLERİ VE ÖĞÜNLERİ MANTIKSAL SIRAYA SOKMA ---
@@ -387,9 +382,15 @@ def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
 
     def sort_logic(item):
         # "Day 1", "Day 2" içindeki numarayı al
-        day_num = int(item.plan_day.split()[-1]) if item.plan_day and item.plan_day.split()[-1].isdigit() else 0
+        day_num = (
+            int(item.plan_day.split()[-1])
+            if item.plan_day and item.plan_day.split()[-1].isdigit()
+            else 0
+        )
         # Öğünün listedeki sırasını bul
-        meal_idx = meal_order.index(item.meal_type) if item.meal_type in meal_order else 99
+        meal_idx = (
+            meal_order.index(item.meal_type) if item.meal_type in meal_order else 99
+        )
         return (day_num, meal_idx)
 
     # Verileri hem Güne hem de Öğün Sırasına (Kahvaltı -> Öğle -> Akşam) göre sırala
@@ -404,8 +405,8 @@ def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
         leftMargin=40,
         topMargin=40,
         bottomMargin=40,
-        title=f"Meal Plan - {db_user.username}",  
-        author="Smart Kitchen Assistant"    
+        title=f"Meal Plan - {db_user.username}",
+        author="Smart Kitchen Assistant",
     )
     story = []
 
@@ -422,9 +423,7 @@ def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
     )
     story.append(Paragraph("SmartKitchen - 3-Day Meal Plan", title_style))
     story.append(
-        Paragraph(
-            f"Prepared for: {db_user.username} ({email})", pdf_styles["Normal"]
-        )
+        Paragraph(f"Prepared for: {db_user.username} ({email})", pdf_styles["Normal"])
     )
     story.append(Spacer(1, 20))
 
@@ -435,7 +434,7 @@ def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
             if current_day != "":
                 story.append(PageBreak())  # Yeni güne geçerken sayfa atla
             current_day = item.plan_day
-            
+
             # Gün Başlığı (H2 Seviyesi)
             day_style = ParagraphStyle(
                 "DayStyle",
@@ -447,7 +446,6 @@ def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
             )
             story.append(Paragraph(f"<b>{current_day}</b>", day_style))
 
-        
         meal_style = ParagraphStyle(
             "MealStyle",
             parent=pdf_styles["Heading3"],
@@ -472,11 +470,9 @@ def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
         story.append(Paragraph("<b>Ingredients:</b>", pdf_styles["Normal"]))
         try:
             ing_data = json.loads(item.ingredients)
-            ingredients = (
-                ing_data.get("ingredients", [])
-                or ing_data.get("usedIngredients", [])
-                + ing_data.get("missedIngredients", [])
-            )
+            ingredients = ing_data.get("ingredients", []) or ing_data.get(
+                "usedIngredients", []
+            ) + ing_data.get("missedIngredients", [])
 
             for ing in ingredients:
                 ing_text = f"- {ing.get('amount', '')} {ing.get('unit', '')} {ing.get('name', '')}"

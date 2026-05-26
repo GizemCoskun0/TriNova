@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 import models
 from database import get_db
-from schemas import MealPlanItemRequest,ItemToggleRequest
+from schemas import MealPlanItemRequest, ItemToggleRequest
 from services.ingredient_service import compare_recipe_with_inventory
 
 from fastapi.responses import StreamingResponse
@@ -13,12 +13,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import io
 
-
-router = APIRouter(
-    prefix="/api",
-    tags=["Shopping List"]
-)
-
+router = APIRouter(prefix="/api", tags=["Shopping List"])
 
 
 @router.get("/shopping-list/{email}")
@@ -26,14 +21,13 @@ def get_shopping_list(email: str, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == email).first()
 
     if not db_user:
-        return {
-            "status": "error",
-            "message": "User not found."
-        }
+        return {"status": "error", "message": "User not found."}
 
-    shopping_items = db.query(models.ShoppingListItem).filter(
-        models.ShoppingListItem.user_email == email
-    ).all()
+    shopping_items = (
+        db.query(models.ShoppingListItem)
+        .filter(models.ShoppingListItem.user_email == email)
+        .all()
+    )
 
     return {
         "status": "success",
@@ -44,46 +38,49 @@ def get_shopping_list(email: str, db: Session = Depends(get_db)):
                 "amount": item.amount,
                 "unit": item.unit,
                 "source_recipe_title": item.source_recipe_title,
-                "is_checked": item.is_checked
+                "is_checked": item.is_checked,
             }
             for item in shopping_items
-        ]
+        ],
     }
 
+
 @router.post("/shopping-list/add-missing")
-def add_missing_items_to_shopping_list(request: MealPlanItemRequest, db: Session = Depends(get_db)):
+def add_missing_items_to_shopping_list(
+    request: MealPlanItemRequest, db: Session = Depends(get_db)
+):
 
     db_user = db.query(models.User).filter(models.User.email == request.email).first()
 
     if not db_user:
-        return {
-            "status": "error",
-            "message": "User not found."
-        }
+        return {"status": "error", "message": "User not found."}
 
-    meal_plan_item = db.query(models.MealPlan).filter(
-        models.MealPlan.id == request.meal_plan_id,
-        models.MealPlan.user_email == request.email
-    ).first()
+    meal_plan_item = (
+        db.query(models.MealPlan)
+        .filter(
+            models.MealPlan.id == request.meal_plan_id,
+            models.MealPlan.user_email == request.email,
+        )
+        .first()
+    )
 
     if not meal_plan_item:
-        return {
-            "status": "error",
-            "message": "Meal plan item not found."
-        }
+        return {"status": "error", "message": "Meal plan item not found."}
 
     available_items, missing_items = compare_recipe_with_inventory(
-        meal_plan_item,
-        db_user,
-        db
+        meal_plan_item, db_user, db
     )
 
     for item in missing_items:
-        existing_item = db.query(models.ShoppingListItem).filter(
-            models.ShoppingListItem.user_email == request.email,
-            models.ShoppingListItem.item_name == item["name"],
-            models.ShoppingListItem.is_checked == False
-        ).first()
+        existing_item = (
+            db.query(models.ShoppingListItem)
+            .filter(
+                models.ShoppingListItem.user_email == request.email,
+                models.ShoppingListItem.item_name == item["name"],
+                models.ShoppingListItem.is_checked == False,
+            )
+            .first()
+        )
 
         if existing_item:
             existing_item.amount += item["amount"]
@@ -95,7 +92,7 @@ def add_missing_items_to_shopping_list(request: MealPlanItemRequest, db: Session
                 amount=item["amount"],
                 unit=item["unit"],
                 source_recipe_title=meal_plan_item.recipe_title,
-                is_checked=False
+                is_checked=False,
             )
 
             db.add(new_item)
@@ -105,52 +102,54 @@ def add_missing_items_to_shopping_list(request: MealPlanItemRequest, db: Session
     return {
         "status": "success",
         "message": "Missing ingredients added to the shopping list.",
-        "added_items": missing_items
+        "added_items": missing_items,
     }
 
+
 @router.put("/shopping-list/toggle/{item_id}")
-def toggle_shopping_item(item_id: int, request: ItemToggleRequest, db: Session = Depends(get_db)):
-    item = db.query(models.ShoppingListItem).filter(models.ShoppingListItem.id == item_id).first()
+def toggle_shopping_item(
+    item_id: int, request: ItemToggleRequest, db: Session = Depends(get_db)
+):
+    item = (
+        db.query(models.ShoppingListItem)
+        .filter(models.ShoppingListItem.id == item_id)
+        .first()
+    )
     if item:
         item.is_checked = request.is_checked
         db.commit()
         return {"status": "success"}
     return {"status": "error", "message": "Item not found"}
 
+
 @router.post("/shopping-list/recalculate/{email}")
-
-
 def recalculate_shopping_list(email: str, db: Session = Depends(get_db)):
 
-    db_user = db.query(models.User).filter(
-        models.User.email == email
-    ).first()
+    db_user = db.query(models.User).filter(models.User.email == email).first()
 
     if not db_user:
-        return {
-            "status": "error",
-            "message": "User not found."
-        }
+        return {"status": "error", "message": "User not found."}
 
-    shopping_items = db.query(models.ShoppingListItem).filter(
-        models.ShoppingListItem.user_email == email
-    ).all()
+    shopping_items = (
+        db.query(models.ShoppingListItem)
+        .filter(models.ShoppingListItem.user_email == email)
+        .all()
+    )
 
-    inventory_items = db.query(models.Inventory).filter(
-        models.Inventory.user_id == db_user.id
-    ).all()
+    inventory_items = (
+        db.query(models.Inventory).filter(models.Inventory.user_id == db_user.id).all()
+    )
 
     for shop_item in shopping_items:
         total_inv_amount = 0
-        
-        # Sum all matching inventory items for this shopping item
+
         for inv_item in inventory_items:
             inventory_name = inv_item.name.lower().strip()
             shopping_name = shop_item.item_name.lower().strip()
 
             if inventory_name in shopping_name or shopping_name in inventory_name:
                 total_inv_amount += inv_item.amount
-        
+
         if total_inv_amount > 0:
             shop_item.amount = shop_item.amount - total_inv_amount
             if shop_item.amount <= 0:
@@ -158,9 +157,11 @@ def recalculate_shopping_list(email: str, db: Session = Depends(get_db)):
 
     db.commit()
 
-    updated_items = db.query(models.ShoppingListItem).filter(
-        models.ShoppingListItem.user_email == email
-    ).all()
+    updated_items = (
+        db.query(models.ShoppingListItem)
+        .filter(models.ShoppingListItem.user_email == email)
+        .all()
+    )
 
     return {
         "status": "success",
@@ -172,46 +173,54 @@ def recalculate_shopping_list(email: str, db: Session = Depends(get_db)):
                 "amount": item.amount,
                 "unit": item.unit,
                 "source_recipe_title": item.source_recipe_title,
-                "is_checked": item.is_checked
+                "is_checked": item.is_checked,
             }
             for item in updated_items
-        ]
+        ],
     }
+
 
 @router.delete("/shopping-list/clear/{email}")
 def clear_checked_items(email: str, db: Session = Depends(get_db)):
-    
+
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user:
         return {"status": "error", "message": "User not found"}
 
-    checked_items = db.query(models.ShoppingListItem).filter(
-        models.ShoppingListItem.user_email == email,
-        models.ShoppingListItem.is_checked == True
-    ).all()
+    checked_items = (
+        db.query(models.ShoppingListItem)
+        .filter(
+            models.ShoppingListItem.user_email == email,
+            models.ShoppingListItem.is_checked == True,
+        )
+        .all()
+    )
 
     for item in checked_items:
-        existing_inv_item = db.query(models.Inventory).filter(
-            models.Inventory.user_id == user.id,
-            models.Inventory.name == item.item_name
-        ).first()
+        existing_inv_item = (
+            db.query(models.Inventory)
+            .filter(
+                models.Inventory.user_id == user.id,
+                models.Inventory.name == item.item_name,
+            )
+            .first()
+        )
 
         if existing_inv_item:
             existing_inv_item.amount += item.amount
         else:
             new_inv_item = models.Inventory(
-                user_id=user.id,
-                name=item.item_name,
-                amount=item.amount,
-                unit=item.unit
+                user_id=user.id, name=item.item_name, amount=item.amount, unit=item.unit
             )
             db.add(new_inv_item)
 
         db.delete(item)
 
     db.commit()
-    return {"status": "success", "message": "Items successfully moved to inventory and removed from shopping list."}
-
+    return {
+        "status": "success",
+        "message": "Items successfully moved to inventory and removed from shopping list.",
+    }
 
 
 @router.get("/shopping-list/{email}/pdf")
@@ -220,53 +229,62 @@ def export_shopping_list_pdf(email: str, db: Session = Depends(get_db)):
     if not db_user:
         return {"status": "error", "message": "User not found."}
 
-    # Sadece henüz alınmamış (is_checked == False) ürünleri çekiyoruz
-    shopping_items = db.query(models.ShoppingListItem).filter(
-        models.ShoppingListItem.user_email == email,
-        models.ShoppingListItem.is_checked == False
-    ).all()
+    shopping_items = (
+        db.query(models.ShoppingListItem)
+        .filter(
+            models.ShoppingListItem.user_email == email,
+            models.ShoppingListItem.is_checked == False,
+        )
+        .all()
+    )
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
-        buffer, 
-        pagesize=letter, 
-        rightMargin=50, 
-        leftMargin=50, 
-        topMargin=50, 
+        buffer,
+        pagesize=letter,
+        rightMargin=50,
+        leftMargin=50,
+        topMargin=50,
         bottomMargin=50,
-        title=f"Grocery List - {db_user.username}", 
-        author="Smart Kitchen Assistant"           
+        title=f"Grocery List - {db_user.username}",
+        author="Smart Kitchen Assistant",
     )
     story = []
-    
+
     styles = getSampleStyleSheet()
-    
-    # PDF Başlığı
+
     title_style = ParagraphStyle(
-        'TitleStyle', parent=styles['Heading1'], fontSize=24, 
-        textColor=colors.HexColor("#2196F3"), spaceAfter=20, alignment=1
+        "TitleStyle",
+        parent=styles["Heading1"],
+        fontSize=24,
+        textColor=colors.HexColor("#2196F3"),
+        spaceAfter=20,
+        alignment=1,
     )
     story.append(Paragraph("🛒 My Grocery List", title_style))
-    story.append(Paragraph(f"Prepared for: {db_user.username}", styles['Normal']))
+    story.append(Paragraph(f"Prepared for: {db_user.username}", styles["Normal"]))
     story.append(Spacer(1, 20))
 
     if not shopping_items:
-        story.append(Paragraph("<i>Your shopping list is currently empty.</i>", styles['Normal']))
+        story.append(
+            Paragraph("<i>Your shopping list is currently empty.</i>", styles["Normal"])
+        )
     else:
-        # Market listesi stili
-        item_style = ParagraphStyle('ItemStyle', parent=styles['Normal'], fontSize=14, spaceAfter=10)
-        
+        item_style = ParagraphStyle(
+            "ItemStyle", parent=styles["Normal"], fontSize=14, spaceAfter=10
+        )
+
         for item in shopping_items:
-            # Başına boş bir kutucuk koyuluyor (çıktı alınıp kalemle çizilsin diye)
-            # Başına "f" harfi eklendi:
             text = f"<font color='white'>.</font><font size='14' face='Helvetica'>[ &nbsp; ]</font> &nbsp;&nbsp; <b>{item.amount} {item.unit}</b> {item.item_name}"
             story.append(Paragraph(text, item_style))
 
     doc.build(story)
     buffer.seek(0)
-    
+
     return StreamingResponse(
-        buffer, 
-        media_type="application/pdf", 
-        headers={"Content-Disposition": f"attachment; filename=grocery_list_{db_user.username}.pdf"}
+        buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=grocery_list_{db_user.username}.pdf"
+        },
     )

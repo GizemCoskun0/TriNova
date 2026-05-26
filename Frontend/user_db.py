@@ -54,7 +54,6 @@ def get_dashboard_data(email):
     conn = create_connection()
     cursor = conn.cursor()
 
-    # User
     cursor.execute(
         """
         SELECT id, username, email
@@ -71,7 +70,6 @@ def get_dashboard_data(email):
 
     user_id = user[0]
 
-    # Inventory count
     cursor.execute(
         """
         SELECT COUNT(*)
@@ -82,7 +80,6 @@ def get_dashboard_data(email):
     )
     inventory_count = cursor.fetchone()[0]
 
-    # Shopping list count
     cursor.execute(
         """
         SELECT COUNT(*)
@@ -93,7 +90,6 @@ def get_dashboard_data(email):
     )
     shopping_count = cursor.fetchone()[0]
 
-    # Meal plan count
     cursor.execute(
         """
         SELECT COUNT(*)
@@ -104,9 +100,6 @@ def get_dashboard_data(email):
     )
     meal_plan_count = cursor.fetchone()[0]
 
-    # 🌟 YENİ: Favorite count
-    # Veritabanınızdaki favoriler tablosunun adının "favorites" ve
-    # sütunun "user_email" olduğunu varsayarak yazılmıştır.
     try:
         cursor.execute(
             """
@@ -118,10 +111,8 @@ def get_dashboard_data(email):
         )
         favorite_count = cursor.fetchone()[0]
     except sqlite3.OperationalError:
-        # Eğer tablo adı farklıysa hata vermemesi için varsayılan 0 döndürür
         favorite_count = 0
 
-    # Diet
     cursor.execute(
         """
         SELECT diets.name
@@ -135,7 +126,6 @@ def get_dashboard_data(email):
     diet_result = cursor.fetchone()
     diet = diet_result[0] if diet_result else "None"
 
-    # Allergy count
     cursor.execute(
         """
         SELECT COUNT(*)
@@ -152,7 +142,7 @@ def get_dashboard_data(email):
         "inventory_count": inventory_count,
         "shopping_count": shopping_count,
         "meal_plan_count": meal_plan_count,
-        "favorite_count": favorite_count,  # 🌟 YENİ EKLENDİ
+        "favorite_count": favorite_count,
         "diet": diet,
         "allergy_count": allergy_count,
     }
