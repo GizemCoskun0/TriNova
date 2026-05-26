@@ -15,7 +15,6 @@ A polished, intelligent web application that generates personalized meal plans b
 ## 📸 Sneak Peek
 > <img width="1919" height="907" alt="Ekran görüntüsü 2026-05-17 215200" src="https://github.com/user-attachments/assets/26f7aa8c-54ef-46ce-b5f4-0cf2f575b6ce" />
 > <img width="1876" height="823" alt="Ekran görüntüsü 2026-05-17 215805" src="https://github.com/user-attachments/assets/4fc8e549-6157-4882-a7c3-d1ade10f51f9" />
-> <img width="1348" height="911" alt="localhost_8501_Meal_Planner" src="https://github.com/user-attachments/assets/e9f1c2fb-cfa0-4e28-93bc-da0d82a277af" />
 > <img width="1901" height="859" alt="Ekran görüntüsü 2026-05-17 220629" src="https://github.com/user-attachments/assets/85873689-0700-4c1c-ae57-e99584ed197c" />
 > <img width="1521" height="813" alt="Ekran görüntüsü 2026-05-17 220809" src="https://github.com/user-attachments/assets/2984ece8-57c7-4ed2-8022-1b02fc217b3e" />
 > <img width="1626" height="853" alt="Ekran görüntüsü 2026-05-17 220911" src="https://github.com/user-attachments/assets/a51e6df0-7cbd-47b9-854d-3e54adab4086" />
