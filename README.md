@@ -36,9 +36,12 @@ A polished, intelligent web application that generates personalized meal plans b
 
 ## 🛠️ Tech Stack
 
-- **Backend:** FastAPI, SQLite
-- **Frontend:** Streamlit 
-- **External API:** Spoonacular (recipe & ingredient data)
+* **Frontend:** Streamlit, Streamlit-Cookies-Controller (Session Management)
+* **Backend:** FastAPI, Uvicorn, SQLAlchemy
+* **Database:** SQLite
+* **AI & Computer Vision:** Ultralytics (YOLO), OpenCV, NumPy, NetworkX
+* **External APIs:** Spoonacular API (Recipe & Ingredient Data)
+* **Utilities:** ReportLab (PDF Export), Pydantic (Data Validation)
 
 ---
 
@@ -182,17 +185,17 @@ SPOONACULAR_API_KEY=your_spoonacular_api_key_here
 ## 🎯 How It Works & Usage Guide
 
 Follow this step-by-step walkthrough to get the most out of your **Smart Kitchen Assistant**. The application follows a seamless pipeline: **Profile Personalization ➡️ Inventory Tracking ➡️ Intelligent Planning ➡️ Automated Grocery Generation.**
-
 ### 🔐 Step 1: Authentication & Onboarding
 * Launch the Streamlit application.
 * Create a new account via the **Register** tab or access your existing workspace using the **Login** form.
 * Secure session state management ensures your digital kitchen stays persistent.
 
-### 🥗 Step 2: Tailor Your Profile (Diet & Allergies)
-* Navigate to your **Profile Status** dashboard.
+### ⚙️ Step 2: Configure Your Settings (Diet, Allergies & Security)
+* Navigate to the **Settings** section (located at the bottom of the navigation menu).
 * Select your specific **Dietary Preferences** (e.g., Vegetarian, Vegan, Keto, Paleo).
 * Log any food **Allergies or Intolerances** (e.g., Nuts, Gluten, Dairy).
-> 🧠 **Behind the Scenes:** The FastAPI backend utilizes strict filtering algorithms based on these inputs, ensuring that no unsafe or incompatible recipes are ever recommended.
+* **Account Management:** You can also securely update your password directly from this page.
+> 🧠 **Behind the Scenes:** The FastAPI backend utilizes strict filtering algorithms based on your diet and allergy inputs, ensuring that no unsafe or incompatible recipes are ever recommended.
 
 ### 🥫 Step 3: Stock Your Virtual Kitchen (Inventory)
 * Head over to the **Inventory** tab.
