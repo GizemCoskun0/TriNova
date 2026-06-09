@@ -297,6 +297,7 @@ def render_recipe_cards(category_key, email, user_favorites):
                         }
                         res = requests.post(
                             "http://localhost:8000/api/favorites", json=fav_payload
+                        )
                         if res.status_code == 200:
                             st.toast("⭐ Favorites updated!")
                             st.rerun()
