@@ -6,7 +6,6 @@
   ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-00a393.svg?style=flat-square&logo=fastapi&logoColor=white)
   ![Streamlit](https://img.shields.io/badge/Streamlit-1.25+-FF4B4B.svg?style=flat-square&logo=streamlit&logoColor=white)
   ![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)
-</div>
 
 <br />
 
@@ -159,6 +158,14 @@ pip install streamlit requests
 streamlit run Frontend/Home.py
 
 ```
+### ⚡ Click Quick Start (Windows Automation)
+
+If you are on Windows, you don't need to open multiple terminal tabs or manually configure paths. I created an automation script that handles everything for you. Simply double-click the file in your root directory or run:
+
+```bash
+baslat.bat
+```
+This script will automatically activate the virtual environment, spin up the FastAPI Uvicorn backend, and launch the interactive Streamlit interface simultaneously in separate windows.
 
 ### 🌐 Accessing the Application
 
