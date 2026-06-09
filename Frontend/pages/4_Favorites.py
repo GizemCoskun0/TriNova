@@ -75,7 +75,6 @@ else:
                         key=f"meal_{recipe['recipe_id']}",
                     )
 
-                # Geçici hafıza anahtarı
                 plan_state_key = f"plan_info_{recipe['recipe_id']}"
 
                 if st.button(
@@ -83,7 +82,6 @@ else:
                     key=f"add_plan_{recipe['recipe_id']}",
                     use_container_width=True,
                 ):
-                    # Eski kayıtlarda ingredients yoksa çökmesin diye kontrol
                     ingredients_json = recipe.get("ingredients")
                     if not ingredients_json:
                         ingredients_json = '{"ingredients": []}'
@@ -102,7 +100,6 @@ else:
                         res = requests.post(API_ADD_SINGLE, json=payload)
                         if res.status_code == 200:
                             data = res.json()
-                            # Dönen eksikleri Streamlit hafızasına kaydediyoruz
                             st.session_state[plan_state_key] = {
                                 "meal_plan_id": data.get("meal_plan_id"),
                                 "missing_items": data.get("missing_items", []),

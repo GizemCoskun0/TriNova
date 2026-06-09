@@ -90,7 +90,6 @@ def show_home_page():
         st.error("Dashboard data could not be loaded.")
         return
 
-    # Değişiklik burada: meal_plan_count yerine favorite_count çekiyoruz
     inventory_count = dashboard_data.get("inventory_count", 0)
     shopping_count = dashboard_data.get("shopping_count", 0)
     favorite_count = dashboard_data.get("favorite_count", 0)
@@ -120,7 +119,6 @@ def show_home_page():
 
     col1, col2, col3 = st.columns(3)
 
-    # Değişiklik burada: Meal Plan kartı, Favoriler kartı olarak değiştirildi
     with col1:
         st.markdown(
             f"""

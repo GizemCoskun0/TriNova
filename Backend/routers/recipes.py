@@ -48,7 +48,6 @@ async def get_recipes(
             for allergy in user.allergies
         ]
 
-    # 2. API'ye sor (İyileri seçebilmek için 15 tane çekiyoruz)
     recipes = await AsyncRecipeAPI.search_by_ingredients(
         ingredients_list=core_ingredients,
         diets=user_diets,
@@ -56,7 +55,6 @@ async def get_recipes(
         number=15,
     )
 
-    # 3. Yedek Plan (Bulamazsa tek malzemeyle dene)
     if (recipes is None or len(recipes) == 0) and len(core_ingredients) > 1:
         recipes = await AsyncRecipeAPI.search_by_ingredients(
             ingredients_list=[core_ingredients[0]],
@@ -66,7 +64,6 @@ async def get_recipes(
         )
 
     if recipes:
-        # 🚀 API'nin yalanlarını düzeltiyoruz: Bizde olan malzemeyi eksik saymasını engelle
         all_ing_lower = [i.lower() for i in all_ingredients]
 
         for recipe in recipes:
@@ -90,14 +87,11 @@ async def get_recipes(
             recipe["missedIngredientCount"] = len(real_missing)
             recipe["usedIngredientCount"] = len(real_used)
 
-        # 🚀 KATI KURAL: Sadece ve sadece eksik malzemesi SIFIR olanları filtrele
         strictly_zero_missing = [r for r in recipes if r["missedIngredientCount"] == 0]
 
         if strictly_zero_missing:
-            # Eğer SIFIR eksikli mükemmel tarifler bulduysa SADECE onları gönder
             return {"status": "success", "data": strictly_zero_missing[:number]}
         else:
-            # SIFIR eksikli hiçbir şey yoksa mecburen en az eksikli olanları sırala
             sorted_recipes = sorted(recipes, key=lambda x: x["missedIngredientCount"])
             return {"status": "success", "data": sorted_recipes[:number]}
 

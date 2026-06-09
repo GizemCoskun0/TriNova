@@ -1,20 +1,22 @@
 try:
-    from ultralytics import YOLO  # type: ignore[import]
+    from ultralytics import YOLO
 except ImportError as e:
-    raise ImportError("ultralytics package not found. Install with 'pip install ultralytics'.") from e
+    raise ImportError(
+        "ultralytics package not found. Install with 'pip install ultralytics'."
+    ) from e
 
 import os
-import cv2  
-import numpy as np 
-
+import cv2
+import numpy as np
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(BASE_DIR, 'weights.pt')
+model_path = os.path.join(BASE_DIR, "weights.pt")
 
 _model = None
 
+
 def get_model():
-    
+
     global _model
     if _model is None:
         if not os.path.exists(model_path):
@@ -22,23 +24,20 @@ def get_model():
         _model = YOLO(model_path)
     return _model
 
+
 def analyze_image_from_bytes(image_bytes):
 
-    
     nparr = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    
-    
+
     model = get_model()
     results = model.predict(source=img, conf=0.2, imgsz=800)
-    
-   
+
     found_ingredients = set()
     for result in results:
         for box in result.boxes:
             class_id = int(box.cls[0])
             class_name = model.names[class_id]
             found_ingredients.add(class_name)
-            
+
     return list(found_ingredients)
-#python -m uvicorn main:app --reload

@@ -27,7 +27,6 @@ def show_recipe_details_dialog(item, meal_plan_id, email, user_favorites=None):
     ready_time = item.get("ready_in_minutes") or item.get("readyInMinutes") or "45"
     servings = item.get("servings") or "4"
 
-    # MODAL İÇİ KART ÜST BİLGİSİ (Resim ve Temel Bilgiler Yan Yana)
     col_modal_img, col_modal_info = st.columns([1, 2])
 
     with col_modal_img:
@@ -98,7 +97,6 @@ def show_recipe_details_dialog(item, meal_plan_id, email, user_favorites=None):
 
     st.divider()
 
-    # ENVANTER KONTROL BUTONU
     if st.button(
         "🔍 Check Ingredients", key=f"check_{meal_plan_id}", use_container_width=True
     ):
@@ -120,7 +118,6 @@ def show_recipe_details_dialog(item, meal_plan_id, email, user_favorites=None):
             except requests.exceptions.ConnectionError:
                 st.error("🚨 CONNECTION ERROR: Backend is not running.")
 
-    # KONTROL SONUÇLARININ GÖSTERİLMESİ
     check_result = st.session_state.ingredient_checks.get(str(meal_plan_id))
 
     if check_result:
@@ -237,7 +234,6 @@ def render_recipe_cards(category_key, email, user_favorites):
 
                 btn_col1, btn_col2 = st.columns(2)
 
-                # --- ADD TO PLAN BUTTON ---
                 with btn_col1:
                     if st.button(
                         f"➕ Add to Plan",
@@ -284,7 +280,6 @@ def render_recipe_cards(category_key, email, user_favorites):
                             st.toast("✅ Added to Plan!")
                             st.rerun()
 
-                # --- ADD TO FAVORITE BUTTON ---
                 with btn_col2:
                     is_fav = recipe["id"] in user_favorites
                     button_label = "❤️ In Favorite" if is_fav else "🤍 Add to Favorite"
@@ -300,10 +295,8 @@ def render_recipe_cards(category_key, email, user_favorites):
                             "recipe_title": recipe["title"],
                             "recipe_image": recipe["image"],
                         }
-                        # Make sure API_FAVORITES is defined in this file or imported
                         res = requests.post(
                             "http://localhost:8000/api/favorites", json=fav_payload
-                        )  # URL'yi kendi API'nize göre güncelleyin
                         if res.status_code == 200:
                             st.toast("⭐ Favorites updated!")
                             st.rerun()
@@ -314,7 +307,6 @@ def render_recipe_cards(category_key, email, user_favorites):
             with detail_col1:
                 st.markdown("#### 🧂 Ingredients")
 
-                # Malzemeleri Spoonacular API'nin dönebileceği tüm olası formlardan topluyoruz
                 ing_list = recipe.get("extendedIngredients", [])
                 if not ing_list:
                     ing_list = recipe.get("usedIngredients", []) + recipe.get(
@@ -328,7 +320,6 @@ def render_recipe_cards(category_key, email, user_favorites):
                         unit = ing.get("unit", "")
                         st.write(f"- **{name}**: {amount} {unit}")
                 else:
-                    # Alternatif fallback
                     basic_ings = recipe.get("ingredients")
                     if basic_ings and isinstance(basic_ings, list):
                         for ing in basic_ings:
@@ -342,7 +333,6 @@ def render_recipe_cards(category_key, email, user_favorites):
             with detail_col2:
                 st.markdown("#### 👩‍🍳 Instructions")
 
-                # Yapılış adımlarını Spoonacular'ın analyzedInstructions yapısından okuyoruz
                 analyzed = recipe.get("analyzedInstructions", [])
                 raw_instr = recipe.get("instructions")
 
@@ -351,7 +341,6 @@ def render_recipe_cards(category_key, email, user_favorites):
                     for s in steps:
                         st.write(f"**{s['number']}.** {s['step']}")
                 elif raw_instr:
-                    # Eğer HTML tagleri içeriyorsa clean_html kullanın, yoksa direkt yazdırın
                     try:
                         st.write(clean_html(raw_instr))
                     except:

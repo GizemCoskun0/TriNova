@@ -19,12 +19,8 @@ API_FAVORITES = "http://localhost:8000/api/favorites"
 API_ADD_SINGLE = "http://localhost:8000/api/meal-plan/add-single"
 
 st.title("📸 Smart Kitchen Inventory")
-st.write(
-    "Manage your ingredients using AI camera or manual entry. "
-)
+st.write("Manage your ingredients using AI camera or manual entry. ")
 st.divider()
-
-
 
 
 if "show_recipes" not in st.session_state:
@@ -115,7 +111,7 @@ with col1:
 
     if picture:
         st.image(picture, caption="Selected Image", width=300)
-    
+
         if st.button("🔍 Analyze with AI"):
             with st.spinner("AI is analyzing the image..."):
 
@@ -175,7 +171,6 @@ with col2:
     if "new_ingredient_qty" not in st.session_state:
         st.session_state.new_ingredient_qty = 1.0
 
-
     def handle_add_item():
         item_name = st.session_state.new_ingredient_name
         item_qty = st.session_state.new_ingredient_qty
@@ -183,9 +178,9 @@ with col2:
         if item_name:
             clean_name = item_name.strip().capitalize()
             res = add_item(clean_name, amount=item_qty)
-            
+
             if res.get("status") == "success":
-                
+
                 backend_message = res.get("message", "Item added!")
                 st.toast(f"✅ {item_qty}x {backend_message}")
 
@@ -195,7 +190,6 @@ with col2:
                 update_shopping_list_after_inventory_add()
             else:
                 st.error(res.get("message"))
-
 
     input_col1, input_col2 = st.columns([3, 1])
     with input_col1:
@@ -221,7 +215,7 @@ with col2:
         st.write("Your kitchen is empty. Start adding some items!")
     else:
         with st.container(height=300):
-            
+
             for item in inventory_items:
                 c1, c2 = st.columns([4, 1])
                 c1.write(f"🧀 **{item['name']}** ({item['amount']} {item['unit']})")
@@ -252,7 +246,7 @@ if st.button("What Can I Cook with These Ingredients", use_container_width=True)
                     params={
                         "ingredients": ingredients_str,
                         "username": aktif_kullanici,
-                        "number": 5,  
+                        "number": 5,
                     },
                 )
 
@@ -260,9 +254,7 @@ if st.button("What Can I Cook with These Ingredients", use_container_width=True)
                     data = response.json()
                     if data.get("status") == "success":
                         st.session_state.fetched_recipes = data.get("data", [])
-                        st.session_state.show_recipes = (
-                            True  
-                        )
+                        st.session_state.show_recipes = True
                     else:
                         st.error(f"API Error: {data.get('message')}")
                 else:
@@ -284,7 +276,6 @@ if st.session_state.show_recipes:
                 with col_img:
                     st.image(recipe["image"], use_container_width=True)
 
-                    
                     is_fav = int(recipe["id"]) in user_favorites
                     button_label = "❤️ In Favorite" if is_fav else "🤍 Add to Favorite"
 
@@ -325,20 +316,17 @@ if st.session_state.show_recipes:
 
                     raw_instr = recipe.get("instructions")
 
-                    
                     if not raw_instr or raw_instr == "":
                         analyzed = recipe.get("analyzedInstructions", [])
                         if analyzed and len(analyzed) > 0:
                             steps = analyzed[0].get("steps", [])
-                            # Adımları 1. 2. 3. diye alt alta diziyoruz
                             raw_instr = "\n".join(
                                 [f"{s['number']}. {s['step']}" for s in steps]
                             )
 
-                    
                     if raw_instr:
                         with st.expander("👨‍🍳 How to Cook (Instructions)"):
-                            
+
                             st.write(raw_instr, unsafe_allow_html=True)
                     else:
                         st.info(
@@ -379,7 +367,6 @@ if st.session_state.show_recipes:
                                 st.rerun()
                     else:
                         st.success("🎉 You have all the ingredients at home!")
-            
 
     else:
         st.warning("No recipes found with these specific ingredients.")

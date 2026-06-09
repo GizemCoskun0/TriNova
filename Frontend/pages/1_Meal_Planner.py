@@ -80,7 +80,6 @@ st.write(
 st.divider()
 
 
-
 st.subheader("⚙️ Meal Plan Actions")
 
 col1, col2, col3, col4, col5, col6 = st.columns(6)
@@ -119,7 +118,6 @@ if show_main:
         "🔄 Main Course Recommendations", use_container_width=True, key="btn_main"
     ):
         with st.spinner("Searching for main courses..."):
-            # DÜZELTME 1: Burası API_GENERATE_PLAN kalmıştı, CATEGORY olarak düzeltildi
             res = requests.post(
                 API_GENERATE_CATEGORY,
                 json={"email": EMAIL, "category": "main course"},
@@ -179,7 +177,6 @@ if show_drink:
     render_recipe_cards("drink", EMAIL, user_favorites)
     st.divider()
 
-# DÜZELTME 2: Çift olan Magic Planner kısmı teke düşürüldü ve doğru payload eklendi
 st.subheader("✨ Magic Planner")
 st.write(
     "Let us create your comprehensive 3-day meal plan (Breakfast, Main Course, Soup, Salad, Dessert, Drink) with just one click."
@@ -208,10 +205,8 @@ render_current_plan(meal_plan, EMAIL, user_favorites)
 
 st.divider()
 
-# STREAMLIT'İN DOĞAL DOWNLOAD BUTONU
 try:
     API_PDF_URL = f"http://localhost:8000/api/meal-plan/{EMAIL}/pdf"
-    # Kullanıcı butona tıkladığı an Streamlit doğrudan Backend'e istek atıp PDF'i indirir
     pdf_response = requests.get(API_PDF_URL)
 
     if pdf_response.status_code == 200:

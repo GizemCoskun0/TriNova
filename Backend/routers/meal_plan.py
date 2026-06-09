@@ -18,7 +18,6 @@ from schemas import (
 from services.ingredient_service import compare_recipe_with_inventory
 from services.recipe_filter_service import recipe_matches_user_preferences
 
-# --- REPORTLAB (PDF) IMPORTLARI ---
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -35,7 +34,6 @@ async def auto_generate_full_plan(
     if not db_user:
         return {"status": "error", "message": "User not found."}
 
-    # Kullanıcının diyet ve alerjilerini İngilizce formatta hazırlama
     CEVIRI = {
         "vejetaryen": "vegetarian",
         "vegan": "vegan",
@@ -54,22 +52,20 @@ async def auto_generate_full_plan(
     ]
     user_diets = [CEVIRI.get(d.name.lower(), d.name.lower()) for d in db_user.diets]
 
-    days = request.days  # Varsayılan 3 gün
+    days = request.days
 
-    # Hangi kategorilerden tarif çekeceğimiz ve sistemdeki öğün isimleri
     categories_to_fetch = {
         "breakfast": "Breakfast",
         "main course": [
             "Lunch",
             "Dinner",
-        ],  # Ana yemekten günde 2 tane lazım (Öğle ve Akşam)
+        ],
         "soup": "Soup",
         "salad": "Salad",
         "dessert": "Dessert",
         "beverage": "Drink",
     }
 
-    # Eski planı temizlemek istersen (isteğe bağlı)
     db.query(models.MealPlan).filter(
         models.MealPlan.user_email == request.email
     ).delete()
@@ -77,30 +73,25 @@ async def auto_generate_full_plan(
 
     generated_count = 0
 
-    # Her kategori için API'ye istek at
-    # Her kategori için API'ye istek at
     for api_category, meal_types in categories_to_fetch.items():
         needed_recipes = days * 2 if type(meal_types) == list else days
 
-        # 🌟 YENİ: Dinamik filtrelerimizi hazırlıyoruz (Karıştırma + Kahvaltı Filtresi)
         extra_filters = {"sort": "random"}
         if api_category == "breakfast":
             extra_filters["excludeIngredients"] = "smoothie, juice, shake, drink"
 
-        # AsyncRecipeAPI içindeki fonksiyonunu kullanarak tarifleri çekiyoruz
         recipes = await AsyncRecipeAPI.get_categorized_recipes(
             diets=user_diets,
             allergies=user_allergies,
             category=api_category,
             number=needed_recipes,
-            **extra_filters,  # Sihirli filtreleri buraya yolluyoruz
+            **extra_filters,
         )
         await asyncio.sleep(1.5)
 
         if not recipes:
             continue
 
-        # 💡 GARANTİ FİLTRE (Fail-safe): Genel plan için de başlık temizliği yapıyoruz
         if api_category == "breakfast":
             recipes = [
                 r
@@ -114,14 +105,12 @@ async def auto_generate_full_plan(
         for day in range(1, days + 1):
             day_str = f"Day {day}"
 
-            # Eğer main course ise hem Lunch hem Dinner için dön
             types_for_day = meal_types if type(meal_types) == list else [meal_types]
 
             for meal_type in types_for_day:
                 if recipe_index < len(recipes):
                     rec = recipes[recipe_index]
 
-                    # Talimatları düzenle
                     raw_instr = rec.get("instructions", "")
                     if not raw_instr and rec.get("analyzedInstructions"):
                         steps = rec["analyzedInstructions"][0].get("steps", [])
@@ -129,7 +118,6 @@ async def auto_generate_full_plan(
                             [f"{s['number']}. {s['step']}" for s in steps]
                         )
 
-                    # Veritabanına kaydet
                     new_plan = models.MealPlan(
                         user_id=db_user.id,
                         user_email=db_user.email,
@@ -154,7 +142,6 @@ async def auto_generate_full_plan(
 
     db.commit()
 
-    # EĞER HİÇ YEMEK BULUNAMADIYSA UI'A HATA GÖNDER
     if generated_count == 0:
         return {
             "status": "error",
@@ -167,7 +154,6 @@ async def auto_generate_full_plan(
     }
 
 
-# ------------------- Tek öğün ekleme endpoint'i ------------------
 @router.post("/meal-plan/add-single")
 def add_single_meal_to_plan(
     request: SingleMealAddRequest, db: Session = Depends(get_db)
@@ -177,7 +163,6 @@ def add_single_meal_to_plan(
     if not db_user:
         return {"status": "error", "message": "User not found."}
 
-    # AYNI GÜN VE ÖĞÜNDE BAŞKA YEMEK VARSA SİL (Üst üste binmesin)
     existing_meal = (
         db.query(models.MealPlan)
         .filter(
@@ -192,13 +177,9 @@ def add_single_meal_to_plan(
         db.delete(existing_meal)
         db.commit()
 
-    # --- YENİ EKLENEN KISIM BAŞLIYOR ---
-    # Frontend'den o dakika ve porsiyonları alabilmemiz lazım ama
-    # şu an SingleMealAddRequest içinde o alanlar olmayabilir.
-    # Güvenli yoldan alıyoruz: Eğer request'in içinde gönderildiyse al, gönderilmediyse varsayılan yaz.
     req_dict = request.dict(exclude_unset=True)
-    ready_time = req_dict.get("ready_in_minutes", 45)  # Yoksa 45 yaz
-    serv = req_dict.get("servings", 4)  # Yoksa 4 yaz
+    ready_time = req_dict.get("ready_in_minutes", 45)
+    serv = req_dict.get("servings", 4)
     inst = req_dict.get("instructions") or "No instructions available."
     new_plan = models.MealPlan(
         user_id=db_user.id,
@@ -210,17 +191,14 @@ def add_single_meal_to_plan(
         recipe_image=request.recipe_image,
         ingredients=request.ingredients_json,
         instructions=inst,
-        # İŞTE AMELİYAT YAPTIĞIMIZ YER: Bu iki sütunu dolduruyoruz
         ready_in_minutes=ready_time,
         servings=serv,
     )
-    # --- YENİ EKLENEN KISIM BİTTİ ---
 
     db.add(new_plan)
     db.commit()
     db.refresh(new_plan)
 
-    # Envanter ile Karşılaştır ve Eksikleri Frontend'e Gönder (Otomatik listeye atma)
     available_items, missing_items = compare_recipe_with_inventory(
         new_plan, db_user, db
     )
@@ -331,10 +309,8 @@ async def generate_category_plan(
 
     category = request.category.lower()
 
-    # Ekstra parametreleri toplamak için bir dinamik sözlük oluşturuyoruz
     extra_filters = {}
 
-    # Eğer kategori kahvaltıysa, smoothie ve içecek türevlerini hariç tutması için Spoonacular'a bildir
     if category == "breakfast":
         extra_filters["excludeIngredients"] = "smoothie, juice, shake, drink"
 
@@ -343,12 +319,9 @@ async def generate_category_plan(
         allergies=user_allergies,
         category=category,
         number=5,
-        **extra_filters,  # 🌟 Hazırladığımız ekstra filtreleri buraya serpiştiriyoruz
+        **extra_filters,
     )
 
-    # 💡 GARANTİ FİLTRE (Fail-safe): Spoonacular bazen 'excludeIngredients' kısmına
-    # rağmen başlığında smoothie geçen yemekleri kahvaltı diye getirebilir.
-    # İşi şansa bırakmamak için Python tarafında da küçük bir temizlik yapalım:
     if category == "breakfast" and recipes:
         recipes = [
             r
@@ -372,31 +345,25 @@ def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
     if not db_user:
         return {"status": "error", "message": "User not found."}
 
-    # Veritabanından verileri çekiyoruz
     raw_items = (
         db.query(models.MealPlan).filter(models.MealPlan.user_email == email).all()
     )
 
-    # --- GÜNLERİ VE ÖĞÜNLERİ MANTIKSAL SIRAYA SOKMA ---
     meal_order = ["Breakfast", "Lunch", "Dinner", "Soup", "Salad", "Dessert", "Drink"]
 
     def sort_logic(item):
-        # "Day 1", "Day 2" içindeki numarayı al
         day_num = (
             int(item.plan_day.split()[-1])
             if item.plan_day and item.plan_day.split()[-1].isdigit()
             else 0
         )
-        # Öğünün listedeki sırasını bul
         meal_idx = (
             meal_order.index(item.meal_type) if item.meal_type in meal_order else 99
         )
         return (day_num, meal_idx)
 
-    # Verileri hem Güne hem de Öğün Sırasına (Kahvaltı -> Öğle -> Akşam) göre sırala
     meal_plan_items = sorted(raw_items, key=sort_logic)
 
-    # PDF'i bellekte (RAM) oluşturmak için BytesIO kullanılıyor
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -412,14 +379,13 @@ def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
 
     pdf_styles = getSampleStyleSheet()
 
-    # PDF Başlığı
     title_style = ParagraphStyle(
         "TitleStyle",
         parent=pdf_styles["Heading1"],
         fontSize=24,
         textColor=colors.HexColor("#ff4b4b"),
         spaceAfter=15,
-        alignment=1,  # Center
+        alignment=1,
     )
     story.append(Paragraph("SmartKitchen - 3-Day Meal Plan", title_style))
     story.append(
@@ -427,15 +393,13 @@ def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
     )
     story.append(Spacer(1, 20))
 
-    # Öğünleri Gün Gün PDF'e Ekleme
     current_day = ""
     for item in meal_plan_items:
         if item.plan_day != current_day:
             if current_day != "":
-                story.append(PageBreak())  # Yeni güne geçerken sayfa atla
+                story.append(PageBreak())
             current_day = item.plan_day
 
-            # Gün Başlığı (H2 Seviyesi)
             day_style = ParagraphStyle(
                 "DayStyle",
                 parent=pdf_styles["Heading2"],
@@ -461,12 +425,10 @@ def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
             )
         )
 
-        # Süre ve Porsiyon Bilgisi
         meta_text = f"<i>Time: {item.ready_in_minutes} min | Portion: {item.servings} People</i>"
         story.append(Paragraph(meta_text, pdf_styles["Normal"]))
         story.append(Spacer(1, 4))
 
-        # --- MALZEMELERİN YAZDIRILMASI ---
         story.append(Paragraph("<b>Ingredients:</b>", pdf_styles["Normal"]))
         try:
             ing_data = json.loads(item.ingredients)
@@ -487,7 +449,6 @@ def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
 
         story.append(Spacer(1, 4))
 
-        # --- TALİMATLARIN YAZDIRILMASI ---
         clean_instructions = (
             re.sub("<.*?>", "", item.instructions)
             if item.instructions
@@ -497,7 +458,6 @@ def export_meal_plan_pdf(email: str, db: Session = Depends(get_db)):
             Paragraph(f"<b>Preparation:</b> {clean_instructions}", pdf_styles["Normal"])
         )
 
-        # Öğünler arasına boşluk
         story.append(Spacer(1, 15))
 
     doc.build(story)

@@ -2,7 +2,6 @@ import streamlit as st
 import requests
 import streamlit as st
 
-
 st.set_page_config(
     page_title="Grocery List", layout="wide", initial_sidebar_state="collapsed"
 )
@@ -45,8 +44,6 @@ def clear_checked_items():
             st.error("Failed to clear items.")
     except Exception:
         st.error("Backend connection error!")
-
-
 
 
 home_items = []
@@ -99,7 +96,7 @@ with col2:
                 )
 
             if any(item.get("is_checked") for item in shopping_items):
-                st.write("")  # Boşluk
+                st.write("")
                 if st.button("🗑️ Clear Purchased Items", use_container_width=True):
                     clear_checked_items()
                     st.rerun()
@@ -112,7 +109,7 @@ st.divider()
 try:
     API_PDF_URL = f"http://localhost:8000/api/shopping-list/{EMAIL}/pdf"
     pdf_response = requests.get(API_PDF_URL)
-    
+
     if pdf_response.status_code == 200:
         st.download_button(
             label="📥 Download Grocery List (PDF)",
@@ -120,9 +117,11 @@ try:
             file_name=f"grocery_list_{USERNAME}.pdf",
             mime="application/pdf",
             use_container_width=True,
-            type="primary"
+            type="primary",
         )
     else:
-        st.button("📥 Download Grocery List (PDF)", disabled=True, use_container_width=True)
+        st.button(
+            "📥 Download Grocery List (PDF)", disabled=True, use_container_width=True
+        )
 except Exception:
     st.button("📥 PDF Server Offline", disabled=True, use_container_width=True)
